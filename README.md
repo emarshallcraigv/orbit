@@ -19,11 +19,21 @@ the work from here.
 
 - `supabase/migrations/0001_init.sql` — full schema + RLS policies. Every tenant-owned
   table has a `practice_id` and policies scoping access to `current_practice_id()` (a
-  SQL function reading the caller's own `profiles.practice_id`). Run this against a
-  fresh Supabase project to get the database side fully set up.
+  SQL function reading the caller's own `profiles.practice_id`).
+- `supabase/migrations/0002_practiceos_hardening.sql` — a review pass done before any
+  frontend wiring started: replaces free-text "who did this" fields with real
+  `profiles` references, drops a redundant staff table, adds room for per-practice
+  settings and timezone, adds a generic audit log, and adds a proper invitations
+  table as an upgrade path from join-codes-only. Full reasoning in
+  `docs/decisions/0002-hardening-before-frontend-rebuild.md` — worth reading before
+  building the auth/onboarding UI, since it explains *why* the tables look the way
+  they do.
+- Run both migrations, in order, against a fresh Supabase project to get the database
+  side fully set up.
 - Two Postgres functions, `create_practice_for_new_user` and `join_practice_by_code`,
   handle onboarding atomically — a client can't end up in a half-created state (a
-  practice with no owner, or a user with no practice).
+  practice with no owner, or a user with no practice). A third, `accept_invitation`,
+  handles the targeted-invite path added in the hardening migration.
 - A trigger auto-creates a blank `profiles` row on signup, so there's always something
   to attach a `practice_id` to right after.
 - `.env.example` — copy to `.env.local` and fill in your Supabase project URL + anon key
@@ -70,6 +80,12 @@ practice.** Specifically:
    new practice. Simplest v1: new practices start with an empty item list and add
    their own via the existing "Manage items" screen. A "starter template" or CSV
    import is a reasonable v2, not required now.
+
+7. **The old "Staff" dropdown pattern needs to go away.** It existed because there
+   were no real logins — someone picked their name from a list before saving a
+   check-in. Now that every staff member has a real account, the app should just use
+   `auth.uid()` / the current session automatically for `performed_by` — no dropdown,
+   no room for someone to select a coworker's name by mistake (or on purpose).
 
 ## Suggested order of attack
 
