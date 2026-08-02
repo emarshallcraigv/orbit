@@ -1,0 +1,12 @@
+{
+  "name": "Mann Orthodontics Supply",
+  "short_name": "Mann Supply",
+  "description": "Supply, inventory, and ordering system for Mann Orthodontics",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F7FA",
+  "theme_color": "#15409E",
+  "icons": [
+    { "src": "/logo.jpg", "sizes": "405x405", "type": "image/jpeg" }
+  ]
+}
