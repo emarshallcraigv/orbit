@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { fetchLocations, createLocation, renameLocation, deleteLocation, saveLocationOrder, nameTaken } from "./lib/locations";
 import { fetchItems, createItem, updateItem, deleteItem, bulkImportItems } from "./lib/items";
 import { parseCsv, buildPayload, templateCsv } from "./lib/importItems";
-import { uploadLogo, signedLogoUrl, removeLogo } from "./lib/branding";
+import { uploadLogo, signedLogoUrl, removeLogo, saveColors } from "./lib/branding";
 import { fetchDistributors, createDistributor, updateDistributor, deleteDistributor } from "./lib/distributors";
 import { fetchShipments, createShipment, updateShipmentSplit, receiveShipment } from "./lib/shipments";
 import { fetchTransfers, confirmTransfer } from "./lib/transfers";
@@ -17,6 +17,12 @@ import { rankHitlist, daysBetween } from "./lib/hitlist";
 // A real tenant's logo comes from practices.logo_url — including Mann's, whose
 // row now stores /logo.jpg, so no practice depends on this fallback for identity.
 const DEFAULT_LOGO_SRC = "/baybridge-icon-512.png";
+
+// Baybridge platform default colors (must match the stylesheet :root). Used to
+// pre-fill the branding pickers when a practice hasn't set its own — so the
+// owner edits from the current effective color, per docs/decisions/0005.
+const BAYBRIDGE_PRIMARY = "#14263D";
+const BAYBRIDGE_ACCENT = "#4089A2";
 
 /* ============================== SEED DATA ============================== */
 // Locations are no longer a hardcoded constant — they come from the practice's
@@ -1654,11 +1660,54 @@ function AddItemForm({ onAdd, locations, categories }) {
 // Owner/admin screen for the practice's own branding. Slice 1 = logo upload +
 // signed-URL preview (private practice-logos bucket, migration 0013). Color
 // pickers + logo-based color auto-suggest arrive in the next slices.
-function BrandingScreen({ practice, logoUrl, onUpload, onRemove }) {
+function BrandingScreen({ practice, logoUrl, onUpload, onRemove, onSaveColors }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef(null);
   const hasCustom = !!practice?.logo_path;
+
+  // Colors: pre-fill from the practice's own values, else the Baybridge default
+  // (so the owner edits from the current effective color). Re-sync when the
+  // practice refreshes after a save/reset.
+  const savedPrimary = practice?.primary_color || BAYBRIDGE_PRIMARY;
+  const savedAccent = practice?.accent_color || BAYBRIDGE_ACCENT;
+  const [primary, setPrimary] = useState(savedPrimary);
+  const [accent, setAccent] = useState(savedAccent);
+  const [colorBusy, setColorBusy] = useState(false);
+  const [colorErr, setColorErr] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => {
+    setPrimary(practice?.primary_color || BAYBRIDGE_PRIMARY);
+    setAccent(practice?.accent_color || BAYBRIDGE_ACCENT);
+  }, [practice?.primary_color, practice?.accent_color]);
+
+  const dirty = primary.toLowerCase() !== savedPrimary.toLowerCase() || accent.toLowerCase() !== savedAccent.toLowerCase();
+  const hasCustomColors = !!(practice?.primary_color || practice?.accent_color);
+
+  async function saveColorsClick() {
+    setColorErr("");
+    setColorBusy(true);
+    try {
+      await onSaveColors(primary, accent);
+      setJustSaved(true);
+    } catch (ex) {
+      setColorErr(ex.message || "Could not save colors.");
+    } finally {
+      setColorBusy(false);
+    }
+  }
+  async function resetColorsClick() {
+    setColorErr("");
+    setColorBusy(true);
+    try {
+      await onSaveColors(null, null); // null -> back to the Baybridge default
+      setJustSaved(false);
+    } catch (ex) {
+      setColorErr(ex.message || "Could not reset colors.");
+    } finally {
+      setColorBusy(false);
+    }
+  }
 
   async function pick(e) {
     const file = e.target.files?.[0];
@@ -1714,6 +1763,42 @@ function BrandingScreen({ practice, logoUrl, onUpload, onRemove }) {
           </div>
         </div>
         {err && <div className="warn-line" style={{ marginTop: 12 }}>{err}</div>}
+      </div>
+
+      <div className="panel">
+        <div className="panel-header"><h2>Colors</h2></div>
+        <div className="brand-colors">
+          <label className="brand-color-field">
+            <span>Primary</span>
+            <span className="brand-color-input">
+              <input type="color" value={primary} onChange={(e) => { setPrimary(e.target.value); setJustSaved(false); }} />
+              <code>{primary}</code>
+            </span>
+          </label>
+          <label className="brand-color-field">
+            <span>Accent</span>
+            <span className="brand-color-input">
+              <input type="color" value={accent} onChange={(e) => { setAccent(e.target.value); setJustSaved(false); }} />
+              <code>{accent}</code>
+            </span>
+          </label>
+        </div>
+
+        <div className="brand-color-preview">
+          <div className="bcp-header" style={{ borderBottomColor: accent }}>
+            <span style={{ color: primary, fontWeight: 800 }}>{practice?.name || "Your practice"}</span>
+            <span className="bcp-tag" style={{ color: accent }}>Supply System</span>
+          </div>
+          <span className="bcp-btn" style={{ background: accent }}>Primary action</span>
+          <span style={{ color: primary, fontWeight: 700, fontSize: "13px" }}>Headings &amp; key text</span>
+        </div>
+
+        <div className="brand-color-actions">
+          <button className="btn btn-primary" disabled={colorBusy || !dirty} onClick={saveColorsClick}>{colorBusy ? "Saving…" : "Save colors"}</button>
+          {hasCustomColors && <button className="btn btn-secondary" disabled={colorBusy} onClick={resetColorsClick}>Reset to Baybridge default</button>}
+          {justSaved && !dirty && <span className="brand-saved">Saved</span>}
+        </div>
+        {colorErr && <div className="warn-line" style={{ marginTop: 12 }}>{colorErr}</div>}
       </div>
     </div>
   );
@@ -2319,6 +2404,12 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
     await onPracticeRefresh?.();
   }, [practice?.id, practice?.logo_path, onPracticeRefresh]);
 
+  // Save brand colors (hex to customize, null to reset a column to default).
+  const handleSaveColors = useCallback(async (primary, accent) => {
+    await saveColors(practice.id, primary, accent);
+    await onPracticeRefresh?.();
+  }, [practice?.id, onPracticeRefresh]);
+
   const handleAddDistributor = useCallback(async (fields) => {
     const name = (fields?.name || "").trim();
     if (!name) return { error: "Enter a distributor name." };
@@ -2553,7 +2644,7 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
             <TransfersView items={itemList} transfers={transfers} onUpdate={handleUpdateTransfer} />
           )}
           {view === "branding" && (profile?.role === "owner" || profile?.role === "admin") && (
-            <BrandingScreen practice={practice} logoUrl={headerLogo} onUpload={handleUploadLogo} onRemove={handleRemoveLogo} />
+            <BrandingScreen practice={practice} logoUrl={headerLogo} onUpload={handleUploadLogo} onRemove={handleRemoveLogo} onSaveColors={handleSaveColors} />
           )}
         </main>
       </div>
@@ -2872,6 +2963,23 @@ const STYLES = `
 .brand-logo-controls { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .brand-logo-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .brand-logo-hint { font-size: 11.5px; color: var(--ink-soft); margin: 2px 0 0; line-height: 1.45; max-width: 340px; }
+
+/* Branding screen — color pickers + live preview */
+.brand-colors { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 16px; }
+.brand-color-field { display: flex; flex-direction: column; gap: 6px; }
+.brand-color-field > span:first-child { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.brand-color-input { display: flex; align-items: center; gap: 9px; }
+.brand-color-input input[type="color"] { width: 46px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; cursor: pointer; }
+.brand-color-input code { font-size: 12px; font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em; }
+.brand-color-preview {
+  border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-start; background: var(--card);
+}
+.brand-color-preview .bcp-header { display: flex; align-items: baseline; gap: 10px; width: 100%; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+.brand-color-preview .bcp-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.brand-color-preview .bcp-btn { color: #fff; font-weight: 600; font-size: 13px; padding: 8px 14px; border-radius: 9px; }
+.brand-color-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.brand-saved { font-size: 12px; font-weight: 600; color: var(--good); }
 .account-menu-signout:hover { background: var(--paper); }
 
 .loading-logo { height: 48px; width: 48px; object-fit: contain; margin-bottom: 4px; }

@@ -53,6 +53,17 @@ export async function signedLogoUrl(path, expiresIn = 3600) {
   return data?.signedUrl || null;
 }
 
+// Save the practice's brand colors. Pass hex strings to customize, or null to
+// clear a column back to the Baybridge platform default. The practices UPDATE
+// policy gates this to owner/admin (same as the logo pointer).
+export async function saveColors(practiceId, primaryColor, accentColor) {
+  const { error } = await supabase
+    .from("practices")
+    .update({ primary_color: primaryColor, accent_color: accentColor })
+    .eq("id", practiceId);
+  if (error) throw error;
+}
+
 // Clear the practice's logo: null the pointer, then delete the object.
 export async function removeLogo(practiceId, path) {
   const { error: dbErr } = await supabase.from("practices").update({ logo_path: null }).eq("id", practiceId);
