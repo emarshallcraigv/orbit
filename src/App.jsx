@@ -195,6 +195,21 @@ function LocationTabs({ active, onChange, counts, locations }) {
   );
 }
 
+// Inline stroke icons (currentColor, so they theme + follow active/severity color).
+function Icon({ name, size = 20 }) {
+  const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (name) {
+    case "dashboard": return <svg {...p}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h5v-6h4v6h5V9.5" /></svg>;
+    case "checkin":   return <svg {...p}><rect x="4" y="4" width="16" height="16" rx="2.5" /><path d="m8.5 12.5 2.4 2.4 4.6-5" /></svg>;
+    case "shipments": return <svg {...p}><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z" /><path d="M3 7.5 12 12l9-4.5M12 12v9" /></svg>;
+    case "queue":     return <svg {...p}><path d="M5 21V4" /><path d="M5 4h11l-2.2 3L16 10H5" /></svg>;
+    case "order":     return <svg {...p}><circle cx="9.5" cy="20" r="1.3" /><circle cx="17" cy="20" r="1.3" /><path d="M3 4h2l2.1 10.4a1 1 0 0 0 1 .8h8.5a1 1 0 0 0 1-.8L20 8H6" /></svg>;
+    case "receive":   return <svg {...p}><path d="M4 13v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6" /><path d="M12 3v10m0 0 3.5-3.5M12 13l-3.5-3.5" /></svg>;
+    case "transfer":  return <svg {...p}><path d="M7 8h13m0 0-3-3m3 3-3 3" /><path d="M17 16H4m0 0 3-3m-3 3 3 3" /></svg>;
+    default: return null;
+  }
+}
+
 function NavItem({ icon, label, active, onClick, count }) {
   return (
     <button className={"nav-item" + (active ? " nav-item-active" : "")} onClick={onClick}>
@@ -315,6 +330,7 @@ function Dashboard({ items, checks, shipments, transfers, queue, setView, setAct
           <div className="hit-list">
             {hitlist.map((h) => (
               <div key={h.id} className={"hit-row hit-" + h.severity}>
+                <span className="hit-icon"><Icon name={h.type} size={18} /></span>
                 <div className="hit-main">
                   <div className="hit-name">{h.itemName}</div>
                   <div className="hit-meta">{h.locationLabel} · {h.sub}</div>
@@ -2264,10 +2280,10 @@ export function MainApp({ profile, practice, onSignOut }) {
 
       <div className="bottom-bar">
         <nav className="bottom-nav">
-          <NavItem icon="⌂" label="Dashboard" active={view === "dashboard"} onClick={() => setView("dashboard")} count={totalFlagged} />
-          <NavItem icon="✓" label="Check-in" active={view === "checkin"} onClick={() => setView("checkin")} />
-          <NavItem icon="▢" label="Shipments" active={view === "shipments"} onClick={() => setView("shipments")} />
-          <NavItem icon="⚑" label="Queue" active={view === "queue"} onClick={() => setView("queue")} count={pendingQueue} />
+          <NavItem icon={<Icon name="dashboard" />} label="Dashboard" active={view === "dashboard"} onClick={() => setView("dashboard")} count={totalFlagged} />
+          <NavItem icon={<Icon name="checkin" />} label="Check-in" active={view === "checkin"} onClick={() => setView("checkin")} />
+          <NavItem icon={<Icon name="shipments" />} label="Shipments" active={view === "shipments"} onClick={() => setView("shipments")} />
+          <NavItem icon={<Icon name="queue" />} label="Queue" active={view === "queue"} onClick={() => setView("queue")} count={pendingQueue} />
         </nav>
         <div className="powered-strip">Powered by <span>Baybridge</span></div>
       </div>
@@ -2350,7 +2366,11 @@ const STYLES = `
 .hit-danger  { border-left-color: var(--reorder); background: var(--reorder-bg); }
 .hit-warning { border-left-color: var(--low);     background: var(--low-bg); }
 .hit-info    { border-left-color: var(--ink-2); }
-.hit-main { flex: 1; min-width: 180px; }
+.hit-icon { display: flex; align-items: center; flex-shrink: 0; color: var(--ink-soft); }
+.hit-danger  .hit-icon { color: var(--reorder); }
+.hit-warning .hit-icon { color: var(--low); }
+.hit-info    .hit-icon { color: var(--ink-2); }
+.hit-main { flex: 1; min-width: 160px; }
 .hit-name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
 .hit-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
 
@@ -2376,10 +2396,15 @@ const STYLES = `
 
 .btn { border: none; border-radius: 9px; font-weight: 600; cursor: pointer; font-size: 13px; padding: 9px 16px; transition: opacity 0.15s; font-family: inherit; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-primary { background: var(--ink); color: #fff; }
-.btn-primary:hover:not(:disabled) { opacity: 0.88; }
+/* Primary CTAs: solid in the practice's ACCENT color (flows through the per-practice
+   override); secondary + danger stay bordered/tinted. The two-class selectors give
+   these higher specificity than .btn-tiny, so the size modifier no longer sets color. */
+.btn.btn-primary { background: var(--brand-green); color: #fff; }
+.btn.btn-primary:hover:not(:disabled) { background: var(--brand-green-dark); }
+.btn.btn-secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+.btn.btn-danger { background: var(--reorder-bg); color: var(--reorder); border: 1px solid var(--reorder); }
 .btn-secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
-.btn-tiny { padding: 5px 10px; font-size: 11.5px; background: var(--ink); color: #fff; border-radius: 7px; }
+.btn-tiny { padding: 5px 10px; font-size: 11.5px; background: var(--brand-green); color: #fff; border-radius: 7px; }
 
 /* Drawer tabs - signature element for location switching */
 .drawer-tabs { display: flex; gap: 4px; padding: 0 2px; }
@@ -2459,7 +2484,7 @@ const STYLES = `
 .powered-strip span { font-weight: 700; color: #4089A2; }
 .nav-item { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; cursor: pointer; color: var(--ink-soft); font-family: inherit; position: relative; }
 .nav-item-active { color: var(--ink); }
-.nav-icon { font-size: 17px; line-height: 1; }
+.nav-icon { display: flex; align-items: center; justify-content: center; line-height: 1; }
 .nav-label { font-size: 9.5px; font-weight: 600; }
 .nav-count { position: absolute; top: 2px; right: 18%; background: var(--reorder); color: #fff; font-size: 9px; font-weight: 700; border-radius: 100px; min-width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
 
