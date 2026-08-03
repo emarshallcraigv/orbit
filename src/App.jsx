@@ -2335,7 +2335,7 @@ const STYLES = `
 
 .view-header { margin-bottom: 18px; }
 .view-header h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
-.view-sub { font-size: 13px; color: var(--ink-soft); margin: 0; }
+.view-sub { font-size: 13px; color: var(--ink-soft); margin: 0; line-height: 1.45; }
 
 .card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 18px; }
 @media (min-width: 640px) { .card-grid { grid-template-columns: repeat(4, 1fr); } }
@@ -2372,7 +2372,7 @@ const STYLES = `
 .hit-info    .hit-icon { color: var(--ink-2); }
 .hit-main { flex: 1; min-width: 160px; }
 .hit-name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
-.hit-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+.hit-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; line-height: 1.4; }
 
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -2387,7 +2387,7 @@ const STYLES = `
 .flag-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .flag-main { flex: 1; min-width: 0; }
 .flag-name { font-size: 13px; font-weight: 600; }
-.flag-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+.flag-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; line-height: 1.4; }
 .muted { color: var(--ink-soft); }
 
 .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px; white-space: nowrap; letter-spacing: 0.01em; }
@@ -2403,6 +2403,8 @@ const STYLES = `
 .btn.btn-primary:hover:not(:disabled) { background: var(--brand-green-dark); }
 .btn.btn-secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
 .btn.btn-danger { background: var(--reorder-bg); color: var(--reorder); border: 1px solid var(--reorder); }
+.btn.btn-secondary:hover:not(:disabled) { background: var(--line); }
+.btn.btn-danger:hover:not(:disabled) { background: var(--reorder); color: #fff; }
 .btn-secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
 .btn-tiny { padding: 5px 10px; font-size: 11.5px; background: var(--brand-green); color: #fff; border-radius: 7px; }
 
@@ -2431,12 +2433,23 @@ const STYLES = `
 .item-row:last-child { border-bottom: none; }
 .item-main { flex: 1; min-width: 160px; }
 .item-name { font-size: 13px; font-weight: 600; }
-.item-meta { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
+.item-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; line-height: 1.4; }
 
 .qty-input { width: 70px; border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-size: 13px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 
+/* Focus rings on every form control. The main app previously had no focus
+   style at all (only the auth screens did); the ring is themeable — it mixes
+   the practice's own --ink accent so custom-branded practices stay on-brand. */
+.text-input:focus, .select:focus, .qty-input:focus,
+.app-root input:focus, .app-root textarea:focus, .app-root select:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
 .status-toggle { display: flex; gap: 5px; }
-.toggle-btn { border: 1px solid var(--line); background: var(--paper); border-radius: 7px; padding: 6px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; color: var(--ink-soft); font-family: inherit; }
+.toggle-btn { border: 1px solid var(--line); background: var(--paper); border-radius: 7px; padding: 6px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; color: var(--ink-soft); font-family: inherit; transition: border-color 0.12s, color 0.12s; }
+.toggle-btn:hover:not(.toggle-btn-active) { border-color: var(--ink-soft); color: var(--ink); }
 .toggle-btn-active { font-weight: 700; }
 
 .ship-form { display: flex; flex-direction: column; gap: 12px; }
@@ -2454,7 +2467,8 @@ const STYLES = `
 .warn-line { font-size: 12px; color: var(--low); background: var(--low-bg); padding: 8px 10px; border-radius: 8px; }
 
 .filter-chips { display: flex; gap: 6px; }
-.chip { border: 1px solid var(--line); background: var(--paper); border-radius: 100px; padding: 4px 11px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: inherit; }
+.chip { border: 1px solid var(--line); background: var(--paper); border-radius: 100px; padding: 4px 11px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: inherit; transition: border-color 0.12s, color 0.12s; }
+.chip:hover:not(.chip-active) { border-color: var(--ink-soft); color: var(--ink); }
 .chip-active { background: var(--ink); color: #fff; border-color: var(--ink); }
 
 .ship-list, .queue-list { display: flex; flex-direction: column; }
