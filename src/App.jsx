@@ -7,6 +7,7 @@ import { fetchTransfers, confirmTransfer } from "./lib/transfers";
 import { fetchCategories, createCategory, renameCategory, deleteCategory, saveCategoryOrder, nameTaken as categoryNameTaken } from "./lib/categories";
 import { fetchQueue, flagQueueLocation, updateQueueFields, setQueueLocations, orderQueueEntry, practiceToday } from "./lib/queue";
 import { fetchChecks, saveCheck } from "./lib/checks";
+import { rankHitlist, daysBetween } from "./lib/hitlist";
 
 /* ============================== BRAND ============================== */
 const LOGO_SRC = "/logo.jpg";
@@ -204,89 +205,127 @@ function NavItem({ icon, label, active, onClick, count }) {
   );
 }
 
-/* ============================== DASHBOARD ============================== */
-function Dashboard({ items, checks, shipments, transfers, queue, setView, setActiveLocation, locations, practiceName }) {
-  const flagged = useMemo(() => {
-    const rows = [];
-    items.forEach((item) => {
-      locations.forEach((loc) => {
-        if (item.type === "Quantity") {
+/* ============================== DASHBOARD (hitlist) ============================== */
+// Per-location "needs ordering" counts, for the summary cards.
+function locNeedCounts(items, checks, shipments, transfers, locations) {
+  const c = Object.fromEntries(locations.map((l) => [l, 0]));
+  items.forEach((item) => {
+    locations.forEach((loc) => {
+      if (item.type === "Quantity") {
+        if (invStatus(item, liveStock(item, loc, checks, shipments, transfers)) === "REORDER NOW") c[loc]++;
+      } else if (effectiveStatus(item, checks[keyFor(loc, item.id)]) === "Need to Order") {
+        c[loc]++;
+      }
+    });
+  });
+  return c;
+}
+
+function Dashboard({ items, checks, shipments, transfers, queue, setView, setActiveLocation, locations, practiceName, today, onConfirmTransfer, onReceiveShipment }) {
+  const itemById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
+  const locCounts = useMemo(() => locNeedCounts(items, checks, shipments, transfers, locations), [items, checks, shipments, transfers, locations]);
+
+  // The three actionable record types, scored + interleaved by urgency.
+  const hitlist = useMemo(() => {
+    const nameOf = (id) => (itemById[id] ? itemById[id].name : id);
+    const entries = [];
+
+    // 1) Needs ordering — pending queue entries.
+    queue.filter((q) => q.status === "Pending").forEach((q) => {
+      const item = itemById[q.itemId];
+      const locs = q.locations || [];
+      let severity01 = 0.75;            // Good/Low "Need to Order" default
+      let worstDanger = true;
+      if (item && item.type === "Quantity") {
+        let worstRatio = 1;
+        locs.forEach((loc) => {
           const stock = liveStock(item, loc, checks, shipments, transfers);
-          const st = invStatus(item, stock);
-          if (st !== "OK") rows.push({ item, loc, status: st, detail: stock + " on hand · threshold " + item.threshold });
-        } else {
-          const check = checks[keyFor(loc, item.id)];
-          const st = effectiveStatus(item, check);
-          if (st === "Need to Order" || st === "Low") {
-            rows.push({ item, loc, status: st, detail: check && check.date ? "Checked " + fmtDate(check.date) : "" });
-          }
-        }
+          const ratio = item.threshold > 0 ? stock / item.threshold : (stock <= 0 ? 0 : 1);
+          worstRatio = Math.min(worstRatio, ratio);
+        });
+        severity01 = Math.max(0, Math.min(1, 1 - worstRatio));
+        worstDanger = worstRatio <= 1;   // at/under threshold
+      }
+      entries.push({
+        id: "order-" + q.id, type: "order", itemName: nameOf(q.itemId),
+        severity: worstDanger ? "danger" : "warning",
+        ageDays: daysBetween(q.dateFlagged, today), severity01,
+        locationLabel: locs.join(", ") || "—",
+        action: "Order", onAction: () => setView("queue"),
+        sub: "Flagged " + fmtDate(q.dateFlagged),
       });
     });
-    rows.sort((a, b) => {
-      const rank = (s) => (s === "REORDER NOW" || s === "Need to Order" ? 0 : 1);
-      return rank(a.status) - rank(b.status);
+
+    // 2) Awaiting transfer confirmation — pending transfers.
+    transfers.filter((t) => t.status === "Pending").forEach((t) => {
+      const ageDays = daysBetween(t.dateCreated, today);
+      entries.push({
+        id: "transfer-" + t.id, type: "transfer", itemName: nameOf(t.itemId),
+        severity: ageDays > 7 ? "danger" : "warning", ageDays,
+        locationLabel: t.fromLocation + " → " + t.toLocation,
+        action: "Confirm arrival", onAction: () => onConfirmTransfer(t.id),
+        sub: "qty " + t.qty + " · logged " + fmtDate(t.dateCreated),
+      });
     });
-    return rows;
-  }, [items, checks, shipments, transfers, locations]);
 
-  const locCounts = useMemo(() => {
-    const c = {};
-    locations.forEach((loc) => { c[loc] = flagged.filter((f) => f.loc === loc && (f.status === "REORDER NOW" || f.status === "Need to Order")).length; });
-    return c;
-  }, [flagged, locations]);
+    // 3) Awaiting receipt — Ordered, not yet Received.
+    shipments.filter((s) => s.status === "Ordered").forEach((s) => {
+      const ageDays = daysBetween(s.dateOrdered, today);
+      entries.push({
+        id: "receive-" + s.id, type: "receive", itemName: nameOf(s.itemId),
+        severity: ageDays > 14 ? "warning" : "info", ageDays,
+        locationLabel: (s.distributor || "No distributor") + (s.shipTo ? " → " + s.shipTo : ""),
+        action: "Mark received", onAction: () => onReceiveShipment(s.id),
+        sub: "ordered " + fmtDate(s.dateOrdered) + (ageDays > 14 ? " · overdue" : ""),
+      });
+    });
 
-  const pendingOrders = queue.filter((q) => q.status === "Pending" || q.status === "Ordered").length;
+    return rankHitlist(entries);
+  }, [queue, transfers, shipments, itemById, checks, today, setView, onConfirmTransfer, onReceiveShipment]);
 
   return (
     <div className="view">
       <div className="view-header">
         <h1>{practiceName || "Supply System"}</h1>
-        <p className="view-sub">{fmtDate(todayISO())} · {locations.length} location{locations.length === 1 ? "" : "s"} · {items.length} items tracked</p>
+        <p className="view-sub">{fmtDate(today)} · {locations.length} location{locations.length === 1 ? "" : "s"} · {items.length} items tracked</p>
       </div>
 
       <div className="card-grid">
-        {locations.map((loc) => (
-          <button key={loc} className="loc-card" onClick={() => { setActiveLocation(loc); setView("checkin"); }}>
-            <div className="loc-card-top">
-              <span className="loc-card-name">{loc}</span>
-              <span className="loc-card-dot" style={{ background: locCounts[loc] > 0 ? "var(--reorder)" : "var(--good)" }} />
-            </div>
-            <div className="loc-card-count">{locCounts[loc]}</div>
-            <div className="loc-card-label">need ordering</div>
-          </button>
-        ))}
+        {locations.map((loc) => {
+          const need = locCounts[loc] || 0;
+          return (
+            <button key={loc} className={"loc-card" + (need > 0 ? " loc-card-alert" : " loc-card-ok")}
+              onClick={() => { setActiveLocation(loc); setView("checkin"); }}>
+              <div className="loc-card-name">{loc}</div>
+              <div className="loc-card-count">{need}</div>
+              <div className="loc-card-label">need ordering</div>
+            </button>
+          );
+        })}
       </div>
 
       <div className="panel">
         <div className="panel-header">
           <h2>Needs attention</h2>
-          <span className="pill">{flagged.length} flagged</span>
+          <span className="pill">{hitlist.length}</span>
         </div>
-        {flagged.length === 0 ? (
-          <div className="empty-state">Nothing flagged right now — all locations are stocked.</div>
+        {hitlist.length === 0 ? (
+          <div className="empty-state">All clear — nothing needs action right now.</div>
         ) : (
-          <div className="flag-list">
-            {flagged.slice(0, 40).map((f, i) => (
-              <div className="flag-row" key={i}>
-                <span className="flag-dot" style={{ background: statusColor(f.status) }} />
-                <div className="flag-main">
-                  <div className="flag-name">{f.item.name}</div>
-                  <div className="flag-meta">{f.loc} · {f.detail}</div>
+          <div className="hit-list">
+            {hitlist.map((h) => (
+              <div key={h.id} className={"hit-row hit-" + h.severity}>
+                <div className="hit-main">
+                  <div className="hit-name">{h.itemName}</div>
+                  <div className="hit-meta">{h.locationLabel} · {h.sub}</div>
                 </div>
-                <Badge status={f.status} small />
+                <button className={"btn btn-tiny " + (h.type === "order" ? "btn-secondary" : "btn-primary")} onClick={h.onAction}>
+                  {h.action}
+                </button>
               </div>
             ))}
           </div>
         )}
-      </div>
-
-      <div className="panel">
-        <div className="panel-header">
-          <h2>Ordering queue</h2>
-          <span className="pill">{pendingOrders} open</span>
-        </div>
-        <button className="btn btn-secondary" onClick={() => setView("queue")}>Review queue →</button>
       </div>
     </div>
   );
@@ -2184,7 +2223,8 @@ export function MainApp({ profile, practice, onSignOut }) {
 
         <main className="main-panel">
           {view === "dashboard" && (
-            <Dashboard items={itemList} checks={checks} shipments={shipments} transfers={transfers} queue={queue} setView={setView} setActiveLocation={setActiveLocation} locations={locationNames} practiceName={practice?.name} />
+            <Dashboard items={itemList} checks={checks} shipments={shipments} transfers={transfers} queue={queue} setView={setView} setActiveLocation={setActiveLocation} locations={locationNames} practiceName={practice?.name} today={today}
+              onConfirmTransfer={handleUpdateTransfer} onReceiveShipment={(id) => handleUpdateShipment(id, { status: "Received" })} />
           )}
           {view === "checkin" && (
             <CheckIn items={itemList} checks={checks} activeLocation={activeLocation} setActiveLocation={setActiveLocation}
@@ -2294,6 +2334,25 @@ const STYLES = `
 .loc-card-dot { width: 8px; height: 8px; border-radius: 50%; }
 .loc-card-count { font-size: 26px; font-weight: 700; font-family: ui-monospace, "SF Mono", Menlo, monospace; line-height: 1; }
 .loc-card-label { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+/* Status-colored left accent + tint on location cards (semantic status tokens) */
+.loc-card { border-left: 4px solid var(--line); }
+.loc-card-alert { border-left-color: var(--reorder); background: var(--reorder-bg); }
+.loc-card-alert .loc-card-count { color: var(--reorder); }
+.loc-card-ok { border-left-color: var(--good); }
+
+/* Dashboard hitlist rows: severity-colored left accent + warm tint for urgent ones */
+.hit-list { display: flex; flex-direction: column; gap: 8px; }
+.hit-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 12px; border: 1px solid var(--line); border-left: 4px solid var(--line);
+  border-radius: 10px; background: var(--card); flex-wrap: wrap;
+}
+.hit-danger  { border-left-color: var(--reorder); background: var(--reorder-bg); }
+.hit-warning { border-left-color: var(--low);     background: var(--low-bg); }
+.hit-info    { border-left-color: var(--ink-2); }
+.hit-main { flex: 1; min-width: 180px; }
+.hit-name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.hit-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
 
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
