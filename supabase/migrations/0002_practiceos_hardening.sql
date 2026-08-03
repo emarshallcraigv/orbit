@@ -86,9 +86,9 @@ alter table invitations enable row level security;
 create policy "select own practice invitations" on invitations
   for select using (practice_id = current_practice_id());
 create policy "owner/admin manage invitations" on invitations
-  for insert with check (practice_id = current_practice_id() and current_role() in ('owner', 'admin'));
+  for insert with check (practice_id = current_practice_id() and current_user_role() in ('owner', 'admin'));
 create policy "owner/admin update invitations" on invitations
-  for update using (practice_id = current_practice_id() and current_role() in ('owner', 'admin'));
+  for update using (practice_id = current_practice_id() and current_user_role() in ('owner', 'admin'));
 
 -- Accepting an invite: given a valid token, attach the caller's profile to that
 -- practice/role and mark the invite used. Security-definer so a brand new user

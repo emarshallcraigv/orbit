@@ -185,7 +185,10 @@ returns uuid language sql stable security definer as $$
   select practice_id from profiles where id = auth.uid()
 $$;
 
-create or replace function current_role()
+-- Named current_user_role (not current_role): current_role is a reserved word
+-- in Postgres, so a plain current_role() helper is fragile to reference. This
+-- matches what is live in the database.
+create or replace function current_user_role()
 returns text language sql stable security definer as $$
   select role from profiles where id = auth.uid()
 $$;
@@ -210,7 +213,7 @@ alter table distributors enable row level security;
 create policy "select own practice" on practices
   for select using (id = current_practice_id());
 create policy "owner/admin update own practice" on practices
-  for update using (id = current_practice_id() and current_role() in ('owner', 'admin'));
+  for update using (id = current_practice_id() and current_user_role() in ('owner', 'admin'));
 
 -- profiles: a user can see other profiles in their own practice, and update
 -- only their own row (role changes should go through an admin-only path, not

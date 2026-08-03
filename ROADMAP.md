@@ -1,0 +1,52 @@
+# Roadmap
+
+This product ships in versions, each a coherent, usable milestone on its own — not a
+single long build-up to a finished product.
+
+## Version 1 (current, in progress)
+
+Supply inventory management as a complete, working system: item catalog with
+categories, dynamic per-practice locations, check-ins, the ordering queue (flagging
+what's needed, tracking status through to ordered), shipment logging and receiving,
+transfers between locations, cross-location rebalancing suggestions (flagging when a
+low-stock item can be pulled from another location's excess instead of ordering more),
+distributor directory, multi-tenant auth and practice onboarding, and a dashboard that
+surfaces what needs attention. V1 tracks that something needs to be ordered and that it
+was ordered — it does not place the order itself, and does not yet capture real purchase
+pricing.
+
+**Near-term build order within V1** (current sequencing, not yet all built):
+queue (3d, done) → check-ins (3e) → visual design refresh + dashboard-as-hitlist →
+CSV bulk item import → cross-location rebalancing suggestions.
+
+## Version 2
+
+Real cost tracking and budgeting: price per unit, actual order costs (price paid,
+shipping, tax) captured against real purchases, and reporting built on that data
+(spend by category / distributor / time period, budget tracking). Ordering itself
+still happens outside the app in V2 — this version is about tracking and reporting on
+cost, not placing orders.
+
+## Version 3
+
+Direct ordering through the app, via an open API integration with distributors. This
+is a significantly bigger scope than V1/V2 and needs real product data to be useful:
+product images, distributor-specific item numbers/SKUs (the same item may have a
+different SKU at each distributor), and price comparison across distributors for the
+same item. Likely needs a proper per-distributor pricing/catalog structure (an item
+can have multiple distributor listings, each with its own SKU / price / image) — not
+something to design or build now, just flagged here so it's not a surprise when V3
+planning starts.
+
+## Version 4 and beyond
+
+Broader operational features beyond supply chain management. Scope intentionally open
+— to be defined as V1–V3 prove out and real practice usage shows what's actually
+needed next, rather than guessing now.
+
+## Enabled by, but not itself a version
+
+Expansion beyond dental practices to other industries, whenever that happens —
+enabled by keeping business logic in Postgres (RLS policies, security-definer
+functions) rather than the frontend, so a different industry's UI can be added
+without re-architecting what exists underneath.

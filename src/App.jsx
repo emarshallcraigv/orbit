@@ -1,37 +1,49 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { getValue, setValue } from "./storage.js";
+import { fetchLocations, createLocation, renameLocation, deleteLocation, saveLocationOrder, nameTaken } from "./lib/locations";
+import { fetchItems, createItem, updateItem, deleteItem } from "./lib/items";
+import { fetchDistributors, createDistributor, updateDistributor, deleteDistributor } from "./lib/distributors";
+import { fetchShipments, createShipment, updateShipmentSplit, receiveShipment } from "./lib/shipments";
+import { fetchTransfers, confirmTransfer } from "./lib/transfers";
+import { fetchCategories, createCategory, renameCategory, deleteCategory, saveCategoryOrder, nameTaken as categoryNameTaken } from "./lib/categories";
+import { fetchQueue, flagQueueLocation, updateQueueFields, setQueueLocations, orderQueueEntry, practiceToday } from "./lib/queue";
+import { fetchChecks, saveCheck } from "./lib/checks";
 
 /* ============================== BRAND ============================== */
 const LOGO_SRC = "/logo.jpg";
 
 /* ============================== SEED DATA ============================== */
-const SEED_ITEMS = [{"id":"SUP-0001","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Clear","name":"Color Ties - Clear","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0002","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"White","name":"Color Ties - White","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0003","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Black","name":"Color Ties - Black","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0004","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Silver","name":"Color Ties - Silver","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0005","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Gold","name":"Color Ties - Gold","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0006","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Blue","name":"Color Ties - Blue","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0007","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Light Blue","name":"Color Ties - Light Blue","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0008","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Navy","name":"Color Ties - Navy","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0009","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Pink","name":"Color Ties - Pink","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0010","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Bubblegum","name":"Color Ties - Bubblegum","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0011","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Aqua","name":"Color Ties - Aqua","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0012","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Teal","name":"Color Ties - Teal","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0013","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Red","name":"Color Ties - Red","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0014","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Maroon","name":"Color Ties - Maroon","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0015","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Purple","name":"Color Ties - Purple","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0016","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Dark Purple","name":"Color Ties - Dark Purple","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0017","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Lilac","name":"Color Ties - Lilac","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0018","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Green","name":"Color Ties - Green","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0019","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Light Green","name":"Color Ties - Light Green","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0020","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Pearl","name":"Color Ties - Pearl","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0021","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Orange","name":"Color Ties - Orange","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0022","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Color Ties","desc":"Yellow","name":"Color Ties - Yellow","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0023","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Blue","name":"A-Chain - Blue","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0024","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Purple","name":"A-Chain - Purple","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0025","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Light Blue","name":"A-Chain - Light Blue","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0026","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Pink","name":"A-Chain - Pink","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0027","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Black","name":"A-Chain - Black","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0028","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Clear","name":"A-Chain - Clear","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0029","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"White","name":"A-Chain - White","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0030","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Aqua","name":"A-Chain - Aqua","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0031","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Red","name":"A-Chain - Red","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0032","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Green","name":"A-Chain - Green","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0033","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Silver","name":"A-Chain - Silver","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0034","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Yellow","name":"A-Chain - Yellow","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0035","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"A-Chain","desc":"Orange","name":"A-Chain - Orange","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0036","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Seperators","desc":"","name":"Seperators","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0037","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Open Coil","desc":"","name":"Open Coil","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 spools"},{"id":"SUP-0038","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Closed Coil","desc":"","name":"Closed Coil","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 spools"},{"id":"SUP-0039","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Power Thread","desc":"","name":"Power Thread","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 spools"},{"id":"SUP-0040","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Comfort Tubing","desc":"","name":"Comfort Tubing","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 spools"},{"id":"SUP-0041","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"Lingual Retainer Wire","desc":"","name":"Lingual Retainer Wire","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 spool"},{"id":"SUP-0042","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"RPE Key","desc":"","name":"RPE Key","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 4"},{"id":"SUP-0043","cabinets":{"Tampa":"1","Palmetto":"1","St. Pete":"1","Largo":"1"},"item":"RPE Key","desc":"","name":"RPE Key","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0044","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Flame","name":"Burs - Flame","type":"Good/Low","unit":"5 per pack","threshold":null,"thresholdDesc":"Less than or equal to 10 burs"},{"id":"SUP-0045","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Round (Slow Speed)","name":"Burs - Round (Slow Speed)","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5 burs"},{"id":"SUP-0046","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Diamond Football","name":"Burs - Diamond Football","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 3 burs"},{"id":"SUP-0047","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Carbide Football","name":"Burs - Carbide Football","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 3 burs"},{"id":"SUP-0048","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Donut","name":"Burs - Donut","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 3 burs"},{"id":"SUP-0049","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Ceramic","name":"Burs - Ceramic","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"none"},{"id":"SUP-0050","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Cross-cut","name":"Burs - Cross-cut","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5 burs"},{"id":"SUP-0051","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Diamond Mosquito Bur","name":"Burs - Diamond Mosquito Bur","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 3 burs"},{"id":"SUP-0052","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Burs","desc":"Chamfer Bur","name":"Burs - Chamfer Bur","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0053","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Lidocaine HCl 2%","desc":"","name":"Lidocaine HCl 2%","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5 carpules"},{"id":"SUP-0054","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Disposable Dental Needles","desc":"30G-S (0.31x21mm)","name":"Disposable Dental Needles - 30G-S (0.31x21mm)","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5"},{"id":"SUP-0055","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"IPR Strips","desc":"Single-sided","name":"IPR Strips - Single-sided","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10 strips"},{"id":"SUP-0056","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"IPR Strips","desc":"Double-Sided","name":"IPR Strips - Double-Sided","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10 strips"},{"id":"SUP-0057","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"IPR Strips","desc":"Perforated, Single-sided","name":"IPR Strips - Perforated, Single-sided","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10 strips"},{"id":"SUP-0058","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"IPR Strips","desc":"Perforated, Double-sided","name":"IPR Strips - Perforated, Double-sided","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10 strips"},{"id":"SUP-0059","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Buttons","desc":"Metal","name":"Buttons - Metal","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 20 "},{"id":"SUP-0060","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Buttons","desc":"Ceramic","name":"Buttons - Ceramic","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10"},{"id":"SUP-0061","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Traction Hooks","desc":"","name":"Traction Hooks","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10"},{"id":"SUP-0062","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Bondable Button Hooks","desc":"Left","name":"Bondable Button Hooks - Left","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0063","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Bondable Button Hooks","desc":"Right","name":"Bondable Button Hooks - Right","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0064","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Eyelets","desc":"","name":"Eyelets","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10"},{"id":"SUP-0065","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Crimpable Split Stops","desc":"","name":"Crimpable Split Stops","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10"},{"id":"SUP-0066","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Crimpable Hook","desc":"","name":"Crimpable Hook","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10"},{"id":"SUP-0067","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Sliding Crimpable Hook","desc":"Left","name":"Sliding Crimpable Hook - Left","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0068","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Sliding Crimpable Hook","desc":"Right","name":"Sliding Crimpable Hook - Right","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10"},{"id":"SUP-0069","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Closing Coils","desc":"0.008*9mm","name":"Closing Coils - 0.008*9mm","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0070","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Closing Coils","desc":"0.008*6mm","name":"Closing Coils - 0.008*6mm","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0071","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Tongue Tamers","desc":"","name":"Tongue Tamers","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10"},{"id":"SUP-0072","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Bonding Lingual Small Cleat","desc":"","name":"Bonding Lingual Small Cleat","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10"},{"id":"SUP-0073","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Warren Torquing Springs","desc":"Big","name":"Warren Torquing Springs - Big","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5"},{"id":"SUP-0074","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Warren Torquing Springs","desc":"Middle","name":"Warren Torquing Springs - Middle","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5"},{"id":"SUP-0075","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Warren Torquing Springs","desc":"Small","name":"Warren Torquing Springs - Small","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5"},{"id":"SUP-0076","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Steel ties","desc":"","name":"Steel ties","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 20 ties"},{"id":"SUP-0077","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"K-ties","desc":"","name":"K-ties","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 20 ties"},{"id":"SUP-0078","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Rapid Eruptor Attachments","desc":"","name":"Rapid Eruptor Attachments","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2"},{"id":"SUP-0079","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"Elastic Hook Tools","desc":"","name":"Elastic Hook Tools","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 10 remaining"},{"id":"SUP-0080","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"RPE Swivel Keys","desc":"","name":"RPE Swivel Keys","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 4"},{"id":"SUP-0081","cabinets":{"Tampa":"2","Palmetto":"2","St. Pete":"2","Largo":"2"},"item":"RPE Swivel Keys","desc":"","name":"RPE Swivel Keys","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0082","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Elbows","desc":"Short","name":"Elbows - Short","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 sets"},{"id":"SUP-0083","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Elbows","desc":"Long","name":"Elbows - Long","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 sets"},{"id":"SUP-0084","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Shims","desc":"1mm","name":"Shims - 1mm","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 6"},{"id":"SUP-0085","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Shims","desc":"2mm","name":"Shims - 2mm","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 4"},{"id":"SUP-0086","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Shims","desc":"3mm","name":"Shims - 3mm","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 4"},{"id":"SUP-0087","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Shims","desc":"4mm","name":"Shims - 4mm","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 4"},{"id":"SUP-0088","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Etch","desc":"","name":"Etch","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 of bottle remaining"},{"id":"SUP-0089","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"L-pop","desc":"","name":"L-pop","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0090","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Blue glue","desc":"","name":"Blue glue","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 3 syringes"},{"id":"SUP-0091","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Brace Cement","desc":"","name":"Brace Cement","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 3 syringes"},{"id":"SUP-0092","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Flowable","desc":"","name":"Flowable","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 3 syringes"},{"id":"SUP-0093","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Ketac","desc":"Powder","name":"Ketac - Powder","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 of bottle remaining"},{"id":"SUP-0094","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Ketac","desc":"Liquid","name":"Ketac - Liquid","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 of bottle remaining"},{"id":"SUP-0095","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Twin Brackets (Mini)","desc":"Allure","name":"Twin Brackets (Mini) - Allure","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 full sets"},{"id":"SUP-0096","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Gold Brackets","desc":"","name":"Gold Brackets","type":"Quantity","unit":"","threshold":5.0,"thresholdDesc":"Less than or equal to 5 full sets"},{"id":"SUP-0097","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Ceramic Brackets","desc":"Full Sets","name":"Ceramic Brackets - Full Sets","type":"Quantity","unit":"","threshold":5.0,"thresholdDesc":"Less than or equal to 5 full sets"},{"id":"SUP-0098","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Upper 6s","desc":"Left","name":"Upper 6s - Left","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 15 brackets"},{"id":"SUP-0099","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Upper 6s","desc":"Right","name":"Upper 6s - Right","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 15 brackets"},{"id":"SUP-0100","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Lower 6s","desc":"Left","name":"Lower 6s - Left","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 15 brackets"},{"id":"SUP-0101","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Lower 6s","desc":"Right","name":"Lower 6s - Right","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 15 brackets"},{"id":"SUP-0102","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Upper 7s","desc":"Left","name":"Upper 7s - Left","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 15 brackets"},{"id":"SUP-0103","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Upper 7s","desc":"Right","name":"Upper 7s - Right","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 15 brackets"},{"id":"SUP-0104","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Lower 7s","desc":"Left","name":"Lower 7s - Left","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 15 brackets"},{"id":"SUP-0105","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Lower 7s","desc":"Right","name":"Lower 7s - Right","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 15 brackets"},{"id":"SUP-0106","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Vitamin E Capsules","desc":"","name":"Vitamin E Capsules","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/4 of bottle remaining"},{"id":"SUP-0107","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Chlorhexadine Gluconate ","desc":"","name":"Chlorhexadine Gluconate ","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 of bottle remaining"},{"id":"SUP-0108","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Topicle","desc":"","name":"Topicle","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/4 of bottle remaining"},{"id":"SUP-0109","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"TADs","desc":"6mm","name":"TADs - 6mm","type":"Quantity","unit":"","threshold":2.0,"thresholdDesc":"Less than or equal to 2"},{"id":"SUP-0110","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"TADs","desc":"8mm","name":"TADs - 8mm","type":"Quantity","unit":"","threshold":2.0,"thresholdDesc":"Less than or equal to 2"},{"id":"SUP-0111","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"TADs","desc":"10mm","name":"TADs - 10mm","type":"Quantity","unit":"","threshold":2.0,"thresholdDesc":"Less than or equal to 2"},{"id":"SUP-0112","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Chewies","desc":"","name":"Chewies","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5 packs"},{"id":"SUP-0113","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Z250 Composite","desc":"A1","name":"Z250 Composite - A1","type":"Quantity","unit":"","threshold":3.0,"thresholdDesc":"Less than or equal to 3 capsules"},{"id":"SUP-0114","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Z250 Composite","desc":"A2","name":"Z250 Composite - A2","type":"Quantity","unit":"","threshold":3.0,"thresholdDesc":"Less than or equal to 3 capsules"},{"id":"SUP-0115","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Z250 Composite","desc":"B1","name":"Z250 Composite - B1","type":"Quantity","unit":"","threshold":3.0,"thresholdDesc":"Less than or equal to 3 capsules"},{"id":"SUP-0116","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Z250 Composite","desc":"B2","name":"Z250 Composite - B2","type":"Quantity","unit":"","threshold":3.0,"thresholdDesc":"Less than or equal to 3 capsules"},{"id":"SUP-0117","cabinets":{"Tampa":"3","Palmetto":"3","St. Pete":"3","Largo":"3"},"item":"Z250 Composite","desc":"","name":"Z250 Composite","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":""},{"id":"SUP-0118","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"Sterilization Bags","desc":"5.25\" x 10\"","name":"Sterilization Bags - 5.25\" x 10\"","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0119","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"Sterilization Bags","desc":"2.25\" x 5\"","name":"Sterilization Bags - 2.25\" x 5\"","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0120","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"Sterilization Bags","desc":"3.5\" x 10\"","name":"Sterilization Bags - 3.5\" x 10\"","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0121","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"Sterilization Bags","desc":"3.5\" x 6.5\"","name":"Sterilization Bags - 3.5\" x 6.5\"","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0122","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Blue","name":"GAC Chain - Blue","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0123","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Light blue","name":"GAC Chain - Light blue","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0124","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Purple","name":"GAC Chain - Purple","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0125","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Pink","name":"GAC Chain - Pink","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0126","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Black","name":"GAC Chain - Black","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0127","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Clear","name":"GAC Chain - Clear","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0128","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"White","name":"GAC Chain - White","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0129","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Aqua","name":"GAC Chain - Aqua","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0130","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Red","name":"GAC Chain - Red","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0131","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Green","name":"GAC Chain - Green","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0132","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Silver","name":"GAC Chain - Silver","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0133","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"Orange","name":"GAC Chain - Orange","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 spool"},{"id":"SUP-0134","cabinets":{"Tampa":"4","Palmetto":"4","St. Pete":"4","Largo":"4"},"item":"GAC Chain","desc":"","name":"GAC Chain","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0135","cabinets":{"Tampa":"5","Palmetto":"5","St. Pete":"5","Largo":"5"},"item":"Tray Covers","desc":"","name":"Tray Covers","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0136","cabinets":{"Tampa":"5","Palmetto":"5","St. Pete":"5","Largo":"5"},"item":"Facemasks","desc":"","name":"Facemasks","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"5 boxes or less"},{"id":"SUP-0137","cabinets":{"Tampa":"5","Palmetto":"5","St. Pete":"5","Largo":"5"},"item":"Bibs","desc":"","name":"Bibs","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0138","cabinets":{"Tampa":"5","Palmetto":"5","St. Pete":"5","Largo":"5"},"item":"Gloves","desc":"M","name":"Gloves - M","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"5 boxes or less"},{"id":"SUP-0139","cabinets":{"Tampa":"5","Palmetto":"5","St. Pete":"5","Largo":"5"},"item":"Cavicide Wipes","desc":"","name":"Cavicide Wipes","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"5 canisters or less"},{"id":"SUP-0140","cabinets":{"Tampa":"5","Palmetto":"5","St. Pete":"5","Largo":"5"},"item":"Aligner Remover Hooks","desc":"","name":"Aligner Remover Hooks","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 2 remaining"},{"id":"SUP-0141","cabinets":{"Tampa":"5","Palmetto":"5","St. Pete":"5","Largo":"5"},"item":"Aligner Remover Hooks","desc":"","name":"Aligner Remover Hooks","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0142","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Air-Water Syringes","desc":"","name":"Air-Water Syringes","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 1 pack"},{"id":"SUP-0143","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Low-Volume Suction","desc":"","name":"Low-Volume Suction","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 packs"},{"id":"SUP-0144","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"High-Volume Suction","desc":"","name":"High-Volume Suction","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 packs"},{"id":"SUP-0145","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"2x2s","desc":"","name":"2x2s","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 2 packs"},{"id":"SUP-0146","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Cotton Rolls","desc":"","name":"Cotton Rolls","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 5 packs"},{"id":"SUP-0147","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Dri-Angles","desc":"","name":"Dri-Angles","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0148","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Cotton Swabs","desc":"","name":"Cotton Swabs","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 10 swabs"},{"id":"SUP-0149","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Microbrushes","desc":"","name":"Microbrushes","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 4 tubes"},{"id":"SUP-0150","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Alcohol Wipes","desc":"","name":"Alcohol Wipes","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"3 canisters or less"},{"id":"SUP-0151","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Floss threaders","desc":"","name":"Floss threaders","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0152","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Floss","desc":"","name":"Floss","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0153","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Interproximal Brushes","desc":"","name":"Interproximal Brushes","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0154","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Patient Wax","desc":"","name":"Patient Wax","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 10 remaining"},{"id":"SUP-0155","cabinets":{"Tampa":"6","Palmetto":"6","St. Pete":"6","Largo":"6"},"item":"Patient Wax","desc":"","name":"Patient Wax","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0156","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"012Niti","desc":"Normal, ovoid","name":"012Niti - Normal, ovoid","type":"Quantity","unit":"","threshold":20.0,"thresholdDesc":"Less than or equal to 20 wires"},{"id":"SUP-0157","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"014Niti","desc":"Normal, ovoid","name":"014Niti - Normal, ovoid","type":"Quantity","unit":"","threshold":20.0,"thresholdDesc":"Less than or equal to 20 wires"},{"id":"SUP-0158","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"018Niti","desc":"Normal, ovoid","name":"018Niti - Normal, ovoid","type":"Quantity","unit":"","threshold":20.0,"thresholdDesc":"Less than or equal to 20 wires"},{"id":"SUP-0159","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"16x25Niti","desc":"Normal, ovoid","name":"16x25Niti - Normal, ovoid","type":"Quantity","unit":"","threshold":20.0,"thresholdDesc":"Less than or equal to 20 wires"},{"id":"SUP-0160","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"18x25Niti","desc":"Normal, ovoid","name":"18x25Niti - Normal, ovoid","type":"Quantity","unit":"","threshold":20.0,"thresholdDesc":"Less than or equal to 20 wires"},{"id":"SUP-0161","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"19x25Niti","desc":"Normal, ovoid","name":"19x25Niti - Normal, ovoid","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0162","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"018Niti RCOS","desc":"","name":"018Niti RCOS","type":"Quantity","unit":"","threshold":20.0,"thresholdDesc":"Less than or equal to 20 wires"},{"id":"SUP-0163","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"16x22Niti RCOS","desc":"","name":"16x22Niti RCOS","type":"Quantity","unit":"","threshold":20.0,"thresholdDesc":"Less than or equal to 20 wires"},{"id":"SUP-0164","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"018 Stainless Steel ","desc":"","name":"018 Stainless Steel ","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0165","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"18x25 Stainless Steel","desc":"","name":"18x25 Stainless Steel","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0166","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"012Niti","desc":"Gold, ovoid","name":"012Niti - Gold, ovoid","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0167","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"014Niti","desc":"Gold, ovoid","name":"014Niti - Gold, ovoid","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0168","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"018Niti","desc":"Gold, ovoid","name":"018Niti - Gold, ovoid","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0169","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"16x25Niti","desc":"Gold, ovoid","name":"16x25Niti - Gold, ovoid","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0170","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"18x25Niti","desc":"Gold, ovoid","name":"18x25Niti - Gold, ovoid","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0171","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"012Niti","desc":"Narrow Arch Form","name":"012Niti - Narrow Arch Form","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0172","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"014Niti","desc":"Narrow Arch Form","name":"014Niti - Narrow Arch Form","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0173","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"018Niti","desc":"Narrow Arch Form","name":"018Niti - Narrow Arch Form","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0174","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"16x25Niti","desc":"Narrow Arch Form","name":"16x25Niti - Narrow Arch Form","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0175","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"18x25Niti","desc":"Narrow Arch Form","name":"18x25Niti - Narrow Arch Form","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":"Less than or equal to 10 wires"},{"id":"SUP-0176","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"Facemask Headgear","desc":"","name":"Facemask Headgear","type":"Quantity","unit":"","threshold":1.0,"thresholdDesc":"1 or none"},{"id":"SUP-0177","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"RPHG","desc":"","name":"RPHG","type":"Quantity","unit":"","threshold":1.0,"thresholdDesc":"1 or none"},{"id":"SUP-0178","cabinets":{"Tampa":"7","Palmetto":"7","St. Pete":"7","Largo":"7"},"item":"RPHG","desc":"","name":"RPHG","type":"Quantity","unit":"","threshold":10.0,"thresholdDesc":""},{"id":"SUP-0179","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"U-Lab Material","desc":"125mm circle","name":"U-Lab Material - 125mm circle","type":"Quantity","unit":"","threshold":0.5,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0180","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Essix Material","desc":"Normal","name":"Essix Material - Normal","type":"Quantity","unit":"25 per pack","threshold":0.5,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0181","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Essix Material","desc":"Thick","name":"Essix Material - Thick","type":"Quantity","unit":"","threshold":0.5,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0182","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Retainer Cases","desc":"","name":"Retainer Cases","type":"Quantity","unit":"","threshold":0.5,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0183","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Mouthguards","desc":"","name":"Mouthguards","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than or equal to 3"},{"id":"SUP-0184","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"3D Printing Resin","desc":"","name":"3D Printing Resin","type":"Quantity","unit":"","threshold":0.5,"thresholdDesc":"Less than 1/2 of bottle"},{"id":"SUP-0185","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Microfiber towels","desc":"","name":"Microfiber towels","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 2"},{"id":"SUP-0186","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"U-lab pouches","desc":"","name":"U-lab pouches","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 20 pouches"},{"id":"SUP-0187","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Ortho baggies","desc":"","name":"Ortho baggies","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 20 baggies"},{"id":"SUP-0188","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Retainer Buffing Wheels","desc":"","name":"Retainer Buffing Wheels","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 3 "},{"id":"SUP-0189","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Isopropyl Alcohol","desc":"","name":"Isopropyl Alcohol","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/4 of botte"},{"id":"SUP-0190","cabinets":{"Tampa":"8","Palmetto":"8","St. Pete":"8","Largo":"8"},"item":"Isopropyl Alcohol","desc":"","name":"Isopropyl Alcohol","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0191","cabinets":{"Tampa":"9","Palmetto":"9","St. Pete":"9","Largo":"9"},"item":"Cavicide","desc":"","name":"Cavicide","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1 bottle"},{"id":"SUP-0192","cabinets":{"Tampa":"9","Palmetto":"9","St. Pete":"9","Largo":"9"},"item":"Maxicide","desc":"","name":"Maxicide","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 2 bottles"},{"id":"SUP-0193","cabinets":{"Tampa":"9","Palmetto":"9","St. Pete":"9","Largo":"9"},"item":"Lubricant","desc":"","name":"Lubricant","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0194","cabinets":{"Tampa":"9","Palmetto":"9","St. Pete":"9","Largo":"9"},"item":"Maxizyme Tabs","desc":"","name":"Maxizyme Tabs","type":"Good/Low","unit":"64 per pack","threshold":null,"thresholdDesc":"Less than 15 tablets"},{"id":"SUP-0195","cabinets":{"Tampa":"9","Palmetto":"9","St. Pete":"9","Largo":"9"},"item":"Maxizyme Tabs","desc":"","name":"Maxizyme Tabs","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0196","cabinets":{"Tampa":"10","Palmetto":"10","St. Pete":"10","Largo":"10"},"item":"Start Kits","desc":"","name":"Start Kits","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0197","cabinets":{"Tampa":"10","Palmetto":"10","St. Pete":"10","Largo":"10"},"item":"Gloves","desc":"XS","name":"Gloves - XS","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"5 boxes or less"},{"id":"SUP-0198","cabinets":{"Tampa":"10","Palmetto":"10","St. Pete":"10","Largo":"10"},"item":"Gloves","desc":"S","name":"Gloves - S","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"5 boxes or less"},{"id":"SUP-0199","cabinets":{"Tampa":"10","Palmetto":"10","St. Pete":"10","Largo":"10"},"item":"Gloves","desc":"","name":"Gloves","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0200","cabinets":{"Tampa":"Sink/Back Cabinet","Palmetto":"Sink/Back Cabinet","St. Pete":"Sink/Back Cabinet","Largo":"Sink/Back Cabinet"},"item":"Single-use toothbrushes","desc":"","name":"Single-use toothbrushes","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0201","cabinets":{"Tampa":"Sink/Back Cabinet","Palmetto":"Sink/Back Cabinet","St. Pete":"Sink/Back Cabinet","Largo":"Sink/Back Cabinet"},"item":"Elastics","desc":"Gorilla","name":"Elastics - Gorilla","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0202","cabinets":{"Tampa":"Sink/Back Cabinet","Palmetto":"Sink/Back Cabinet","St. Pete":"Sink/Back Cabinet","Largo":"Sink/Back Cabinet"},"item":"Elastics","desc":"Bald Eagle","name":"Elastics - Bald Eagle","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0203","cabinets":{"Tampa":"Sink/Back Cabinet","Palmetto":"Sink/Back Cabinet","St. Pete":"Sink/Back Cabinet","Largo":"Sink/Back Cabinet"},"item":"Elastics","desc":"Falcon","name":"Elastics - Falcon","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0204","cabinets":{"Tampa":"Sink/Back Cabinet","Palmetto":"Sink/Back Cabinet","St. Pete":"Sink/Back Cabinet","Largo":"Sink/Back Cabinet"},"item":"Elastics","desc":"Sea Lion","name":"Elastics - Sea Lion","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0205","cabinets":{"Tampa":"Sink/Back Cabinet","Palmetto":"Sink/Back Cabinet","St. Pete":"Sink/Back Cabinet","Largo":"Sink/Back Cabinet"},"item":"Elastics","desc":"Egret","name":"Elastics - Egret","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0206","cabinets":{"Tampa":"Sink/Back Cabinet","Palmetto":"Sink/Back Cabinet","St. Pete":"Sink/Back Cabinet","Largo":"Sink/Back Cabinet"},"item":"Elastics","desc":"Jaguar","name":"Elastics - Jaguar","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/2 left in box being used"},{"id":"SUP-0207","cabinets":{"Tampa":"Sink/Back Cabinet","Palmetto":"Sink/Back Cabinet","St. Pete":"Sink/Back Cabinet","Largo":"Sink/Back Cabinet"},"item":"Elastics","desc":"","name":"Elastics","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0208","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Porcelain Conditioner","desc":"","name":"Porcelain Conditioner","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/4 of bottles"},{"id":"SUP-0209","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Porcelain Etch","desc":"","name":"Porcelain Etch","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/4 of bottles"},{"id":"SUP-0210","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Toilet Paper","desc":"","name":"Toilet Paper","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 2 rolls remaining"},{"id":"SUP-0211","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"C-folds","desc":"","name":"C-folds","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 2 packs left"},{"id":"SUP-0212","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Paper Towels","desc":"","name":"Paper Towels","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 2 rolls remaining"},{"id":"SUP-0213","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Trash Bags","desc":"","name":"Trash Bags","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0214","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Coffee","desc":"","name":"Coffee","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0215","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Handsoap","desc":"Refillable (Toothbrushing Station)","name":"Handsoap - Refillable (Toothbrushing Station)","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 1/4 of bottles"},{"id":"SUP-0216","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Handsoap","desc":"Bathrooms","name":"Handsoap - Bathrooms","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"1 bag remaining"},{"id":"SUP-0217","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Copy Paper","desc":"","name":"Copy Paper","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"1 ream remaining"},{"id":"SUP-0218","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Disposable Cups","desc":"","name":"Disposable Cups","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":"Less than 25 cups remaining"},{"id":"SUP-0219","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Solid Collector Screens","desc":"","name":"Solid Collector Screens","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0220","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Solid Collector Screens","desc":"","name":"Solid Collector Screens","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0221","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Solid Collector Screens","desc":"","name":"Solid Collector Screens","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0222","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Solid Collector Screens","desc":"","name":"Solid Collector Screens","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0223","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Solid Collector Screens","desc":"","name":"Solid Collector Screens","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""},{"id":"SUP-0224","cabinets":{"Tampa":"Extras","Palmetto":"Extras","St. Pete":"Extras","Largo":"Extras"},"item":"Solid Collector Screens","desc":"","name":"Solid Collector Screens","type":"Good/Low","unit":"","threshold":null,"thresholdDesc":""}];
-const SEED_STAFF = ["Ariyae", "Brooklynn", "Ian", "Leann", "Lynn", "Marshall", "Rylee", "Taylor", "Dr. Berry", "Dr. Gonzalez", "Dr. Mann"];
-const SEED_DISTRIBUTORS = ["3M", "4imprint", "Allure", "Amazon", "Amtouch", "AO", "AOA Lab", "BestValueCopy", "Dental City", "Dentaurum", "Dentsply Sirona", "Dynaflex", "Ebay", "forestadentusa", "Henry Schein", "Isoglides", "Net32", "Orthopli", "Philips", "Reliance", "RMO", "Sams Club", "Specialty", "Speed System", "Voxel Dental", "Other"];
-const LOCATIONS = ["Tampa", "Palmetto", "St. Pete", "Largo"];
-const LOC_FIELD = { "Tampa": "tampa", "Palmetto": "palmetto", "St. Pete": "stpete", "Largo": "largo" };
-const SHIP_LOCATIONS = [...LOCATIONS, "Dr. Mann's"];
-const LOCATION_WEIGHTS = { "Palmetto": 4, "Tampa": 3, "St. Pete": 2, "Largo": 1 };
+// Locations are no longer a hardcoded constant — they come from the practice's
+// own `locations` table (loaded in MainApp) and are threaded down as a `locations`
+// prop (an array of names). See docs step 2. Anything that used to iterate the old
+// LOCATIONS array now iterates that prop, so a practice works with 1 or 20 offices.
 
-// Splits a total quantity across the given locations, weighted so Palmetto gets the
-// largest share, then Tampa, then St. Pete, then Largo - while keeping the parts
-// summing exactly to the total (remainder goes to whichever location's rounded-down
-// amount was furthest below its fair share).
-function weightedSplit(total, locations) {
-  const weights = locations.map((l) => LOCATION_WEIGHTS[l] || 1);
-  const weightSum = weights.reduce((a, b) => a + b, 0) || 1;
-  const raw = weights.map((w) => (total * w) / weightSum);
-  const floors = raw.map(Math.floor);
-  let remainder = total - floors.reduce((a, b) => a + b, 0);
-  const order = raw
-    .map((r, i) => ({ i, frac: r - Math.floor(r), w: weights[i] }))
-    .sort((a, b) => b.frac - a.frac || b.w - a.w);
-  const result = [...floors];
-  for (let k = 0; k < remainder && order.length > 0; k++) {
-    result[order[k % order.length].i] += 1;
+// Legacy shipment records stored per-location quantity in fixed columns
+// (tampa/palmetto/stpete/largo). New records use a `split` map keyed by location
+// name. shipQty reads whichever exists, so old blob data keeps computing until the
+// step 3 data-layer rewrite retires the legacy shape entirely.
+const LEGACY_SHIP_FIELD = { "Tampa": "tampa", "Palmetto": "palmetto", "St. Pete": "stpete", "Largo": "largo" };
+function shipQty(shipment, location) {
+  if (shipment.split && Object.prototype.hasOwnProperty.call(shipment.split, location)) {
+    return Number(shipment.split[location]) || 0;
   }
+  const legacy = LEGACY_SHIP_FIELD[location];
+  return legacy ? Number(shipment[legacy]) || 0 : 0;
+}
+
+// Splits a total quantity as evenly as possible across the given locations, keeping
+// the parts summing exactly to the total. The leftover from integer division is
+// handed out one-per-location by original order (largest-remainder), so e.g. 10
+// across 3 locations -> [4, 3, 3]. Replaces the old Mann-specific weighting.
+function evenSplit(total, locations) {
   const splitByLoc = {};
-  locations.forEach((loc, idx) => { splitByLoc[loc] = result[idx]; });
+  const n = locations.length;
+  if (n === 0) return splitByLoc;
+  const base = Math.floor(total / n);
+  let remainder = total - base * n;
+  locations.forEach((loc) => {
+    splitByLoc[loc] = base + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+  });
   return splitByLoc;
 }
 
@@ -42,7 +54,11 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 function fmtDate(d) {
   if (!d) return "—";
-  const dt = new Date(d);
+  // A date-only string (YYYY-MM-DD) is already the intended calendar date (dates
+  // are stored in the practice's timezone). Parse it as LOCAL, not UTC, so the
+  // browser's timezone can't shift it back a day on display.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d));
+  const dt = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(d);
   if (isNaN(dt.getTime())) return "—";
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -64,7 +80,6 @@ function effectiveStatus(item, check) {
 }
 
 function receivedSince(shipments, transfers, itemId, location, sinceDate) {
-  const field = LOC_FIELD[location];
   // Direct credit: shipments that landed at this location - either because this
   // location IS the ship-to address, or (for older records with no ship-to set)
   // because we fall back to the old "goes straight to each location" behavior.
@@ -72,7 +87,7 @@ function receivedSince(shipments, transfers, itemId, location, sinceDate) {
     .filter((s) => s.itemId === itemId && s.status === "Received" && s.dateReceived &&
       (!sinceDate || s.dateReceived > sinceDate) &&
       (!s.shipTo || s.shipTo === location))
-    .reduce((sum, s) => sum + (Number(s[field]) || 0), 0);
+    .reduce((sum, s) => sum + shipQty(s, location), 0);
   // Transferred credit: portions that arrived somewhere else first and have since
   // been confirmed as physically moved to this location.
   const transferred = (transfers || [])
@@ -111,58 +126,28 @@ function statusBg(status) {
   return "var(--line)";
 }
 
-function upsertQueueEntry(queue, itemId, location, detail) {
-  const idx = queue.findIndex((q) => q.itemId === itemId && (q.status === "Pending" || q.status === "Ordered"));
-  if (idx === -1) {
-    const entry = {
-      id: uid("Q"), dateFlagged: todayISO(), itemId,
-      locations: [location], details: { [location]: detail },
-      distributor: "", status: "Pending", dateOrdered: "", staff: detail.staff || "", notes: "",
-      qtyToOrder: "", shipmentCreated: false,
-    };
-    return [...queue, entry];
-  }
-  const existing = queue[idx];
-  const nextLocations = existing.locations.includes(location) ? existing.locations : [...existing.locations, location];
-  const nextDetails = { ...existing.details, [location]: detail };
-  const next = { ...existing, locations: nextLocations, details: nextDetails };
-  return queue.map((q, i) => (i === idx ? next : q));
-}
-
 function uid(prefix) {
   return prefix + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-/* ============================== STORAGE HOOK ============================== */
-function useSharedState(storageKey, initialValue) {
-  const [value, setStateValue] = useState(initialValue);
-  const [loaded, setLoaded] = useState(false);
+// Only let a practice's stored color through if it's a plain hex value, so a
+// tenant-controlled DB field can never inject arbitrary CSS into the page.
+function safeColor(value) {
+  return typeof value === "string" && /^#[0-9a-fA-F]{3,8}$/.test(value.trim()) ? value.trim() : null;
+}
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await getValue(storageKey, true);
-        if (raw) {
-          setStateValue(JSON.parse(raw));
-        }
-      } catch (err) {
-        // key doesn't exist yet - keep initial value
-      } finally {
-        setLoaded(true);
-      }
-    })();
-  }, [storageKey]);
-
-  const persist = useCallback(async (next) => {
-    setStateValue(next);
-    try {
-      await setValue(storageKey, JSON.stringify(next), true);
-    } catch (err) {
-      console.error("Storage save failed for", storageKey, err);
-    }
-  }, [storageKey]);
-
-  return [value, persist, loaded];
+// Runtime brand override, scoped to .app-root, from the practice's own colors.
+// Mann's stored colors equal the stylesheet defaults, so this is a no-op for
+// them (their look is unchanged); other practices get their own primary/accent.
+function practiceBrandCss(practice) {
+  if (!practice) return "";
+  const primary = safeColor(practice.primary_color);
+  const accent = safeColor(practice.accent_color);
+  if (!primary && !accent) return "";
+  return ".app-root{" +
+    (primary ? "--ink:" + primary + ";" : "") +
+    (accent ? "--brand-green:" + accent + ";" : "") +
+    "}";
 }
 
 /* ============================== SMALL UI PIECES ============================== */
@@ -181,7 +166,7 @@ function Badge({ status, small }) {
 function Select({ value, onChange, options, placeholder }) {
   return (
     <select className="select" value={value || ""} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{placeholder || "\u2014"}</option>
+      <option value="">{placeholder || "—"}</option>
       {options.map((o) => (
         <option key={o} value={o}>{o}</option>
       ))}
@@ -189,10 +174,10 @@ function Select({ value, onChange, options, placeholder }) {
   );
 }
 
-function LocationTabs({ active, onChange, counts }) {
+function LocationTabs({ active, onChange, counts, locations }) {
   return (
     <div className="drawer-tabs">
-      {LOCATIONS.map((loc) => {
+      {locations.map((loc) => {
         const c = counts ? counts[loc] || 0 : 0;
         return (
           <button
@@ -220,15 +205,15 @@ function NavItem({ icon, label, active, onClick, count }) {
 }
 
 /* ============================== DASHBOARD ============================== */
-function Dashboard({ items, checks, shipments, transfers, queue, setView, setActiveLocation }) {
+function Dashboard({ items, checks, shipments, transfers, queue, setView, setActiveLocation, locations, practiceName }) {
   const flagged = useMemo(() => {
     const rows = [];
     items.forEach((item) => {
-      LOCATIONS.forEach((loc) => {
+      locations.forEach((loc) => {
         if (item.type === "Quantity") {
           const stock = liveStock(item, loc, checks, shipments, transfers);
           const st = invStatus(item, stock);
-          if (st !== "OK") rows.push({ item, loc, status: st, detail: stock + " on hand \u00b7 threshold " + item.threshold });
+          if (st !== "OK") rows.push({ item, loc, status: st, detail: stock + " on hand · threshold " + item.threshold });
         } else {
           const check = checks[keyFor(loc, item.id)];
           const st = effectiveStatus(item, check);
@@ -243,25 +228,25 @@ function Dashboard({ items, checks, shipments, transfers, queue, setView, setAct
       return rank(a.status) - rank(b.status);
     });
     return rows;
-  }, [items, checks, shipments]);
+  }, [items, checks, shipments, transfers, locations]);
 
   const locCounts = useMemo(() => {
     const c = {};
-    LOCATIONS.forEach((loc) => { c[loc] = flagged.filter((f) => f.loc === loc && (f.status === "REORDER NOW" || f.status === "Need to Order")).length; });
+    locations.forEach((loc) => { c[loc] = flagged.filter((f) => f.loc === loc && (f.status === "REORDER NOW" || f.status === "Need to Order")).length; });
     return c;
-  }, [flagged]);
+  }, [flagged, locations]);
 
   const pendingOrders = queue.filter((q) => q.status === "Pending" || q.status === "Ordered").length;
 
   return (
     <div className="view">
       <div className="view-header">
-        <h1>Mann Orthodontics Supply</h1>
-        <p className="view-sub">{fmtDate(todayISO())} \u00b7 4 locations \u00b7 {items.length} items tracked</p>
+        <h1>{practiceName || "Supply System"}</h1>
+        <p className="view-sub">{fmtDate(todayISO())} · {locations.length} location{locations.length === 1 ? "" : "s"} · {items.length} items tracked</p>
       </div>
 
       <div className="card-grid">
-        {LOCATIONS.map((loc) => (
+        {locations.map((loc) => (
           <button key={loc} className="loc-card" onClick={() => { setActiveLocation(loc); setView("checkin"); }}>
             <div className="loc-card-top">
               <span className="loc-card-name">{loc}</span>
@@ -279,7 +264,7 @@ function Dashboard({ items, checks, shipments, transfers, queue, setView, setAct
           <span className="pill">{flagged.length} flagged</span>
         </div>
         {flagged.length === 0 ? (
-          <div className="empty-state">Nothing flagged right now \u2014 all locations are stocked.</div>
+          <div className="empty-state">Nothing flagged right now — all locations are stocked.</div>
         ) : (
           <div className="flag-list">
             {flagged.slice(0, 40).map((f, i) => (
@@ -287,7 +272,7 @@ function Dashboard({ items, checks, shipments, transfers, queue, setView, setAct
                 <span className="flag-dot" style={{ background: statusColor(f.status) }} />
                 <div className="flag-main">
                   <div className="flag-name">{f.item.name}</div>
-                  <div className="flag-meta">{f.loc} \u00b7 {f.detail}</div>
+                  <div className="flag-meta">{f.loc} · {f.detail}</div>
                 </div>
                 <Badge status={f.status} small />
               </div>
@@ -301,14 +286,14 @@ function Dashboard({ items, checks, shipments, transfers, queue, setView, setAct
           <h2>Ordering queue</h2>
           <span className="pill">{pendingOrders} open</span>
         </div>
-        <button className="btn btn-secondary" onClick={() => setView("queue")}>Review queue \u2192</button>
+        <button className="btn btn-secondary" onClick={() => setView("queue")}>Review queue →</button>
       </div>
     </div>
   );
 }
 
 /* ============================== CHECK-IN ============================== */
-function ItemRow({ item, check, staff, location, onSave }) {
+function ItemRow({ item, check, location, onSave }) {
   const [count, setCount] = useState(check && check.count !== undefined ? check.count : "");
   const [notes, setNotes] = useState(check ? check.notes || "" : "");
 
@@ -324,7 +309,7 @@ function ItemRow({ item, check, staff, location, onSave }) {
       <div className="item-row">
         <div className="item-main">
           <div className="item-name">{item.name}</div>
-          <div className="item-meta">Cabinet {item.cabinets[location]} \u00b7 threshold {item.threshold}{item.unit ? " \u00b7 " + item.unit : ""}</div>
+          <div className="item-meta">Cabinet {item.cabinets[location]} · threshold {item.threshold}{item.unit ? " · " + item.unit : ""}</div>
         </div>
         <input
           className="qty-input"
@@ -338,7 +323,7 @@ function ItemRow({ item, check, staff, location, onSave }) {
         <button
           className="btn btn-tiny"
           disabled={!dirty || count === ""}
-          onClick={() => onSave(item, { count: Number(count), notes, staff })}
+          onClick={() => onSave(item, { count: Number(count), notes })}
         >
           Save
         </button>
@@ -351,7 +336,7 @@ function ItemRow({ item, check, staff, location, onSave }) {
     <div className="item-row">
       <div className="item-main">
         <div className="item-name">{item.name}</div>
-        <div className="item-meta">Cabinet {item.cabinets[location]}{check && check.date ? " \u00b7 last checked " + fmtDate(check.date) : ""}</div>
+        <div className="item-meta">Cabinet {item.cabinets[location]}{check && check.date ? " · last checked " + fmtDate(check.date) : ""}</div>
       </div>
       <div className="status-toggle">
         {["Good", "Low", "Need to Order"].map((s) => (
@@ -359,7 +344,7 @@ function ItemRow({ item, check, staff, location, onSave }) {
             key={s}
             className={"toggle-btn" + (status === s ? " toggle-btn-active" : "")}
             style={status === s ? { background: statusBg(s), color: statusColor(s), borderColor: statusColor(s) } : {}}
-            onClick={() => onSave(item, { status: s, notes, staff })}
+            onClick={() => onSave(item, { status: s, notes })}
           >
             {s === "Need to Order" ? "Order" : s}
           </button>
@@ -369,8 +354,7 @@ function ItemRow({ item, check, staff, location, onSave }) {
   );
 }
 
-function CheckIn({ items, checks, activeLocation, setActiveLocation, staffList, onSaveCheck, locCounts }) {
-  const [staff, setStaff] = useState("");
+function CheckIn({ items, checks, activeLocation, setActiveLocation, onSaveCheck, locCounts, locations }) {
   const [search, setSearch] = useState("");
   const [cabinet, setCabinet] = useState("");
 
@@ -397,15 +381,14 @@ function CheckIn({ items, checks, activeLocation, setActiveLocation, staffList, 
     <div className="view">
       <div className="view-header">
         <h1>Location check-in</h1>
-        <p className="view-sub">Mark stock at each location \u2014 flags route to the ordering queue automatically.</p>
+        <p className="view-sub">Mark stock at each location — flags route to the ordering queue automatically.</p>
       </div>
 
-      <LocationTabs active={activeLocation} onChange={setActiveLocation} counts={locCounts} />
+      <LocationTabs active={activeLocation} onChange={setActiveLocation} counts={locCounts} locations={locations} />
 
       <div className="panel drawer-panel">
         <div className="checkin-controls">
-          <Select value={staff} onChange={setStaff} options={staffList} placeholder="Who's checking?" />
-          <input className="text-input" placeholder="Search items\u2026" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="text-input" placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <select className="select" value={cabinet} onChange={(e) => setCabinet(e.target.value)}>
             <option value="">All cabinets</option>
             {cabinets.map((c) => <option key={c} value={c}>Cabinet {c}</option>)}
@@ -423,7 +406,6 @@ function CheckIn({ items, checks, activeLocation, setActiveLocation, staffList, 
                   key={item.id}
                   item={item}
                   check={checks[keyFor(activeLocation, item.id)]}
-                  staff={staff}
                   location={activeLocation}
                   onSave={(it, patch) => onSaveCheck(it, activeLocation, patch)}
                 />
@@ -437,14 +419,15 @@ function CheckIn({ items, checks, activeLocation, setActiveLocation, staffList, 
 }
 
 /* ============================== SHIPMENTS ============================== */
-function ShipmentForm({ items, distributors, onAdd }) {
+function ShipmentForm({ items, distributors, onAdd, locations }) {
+  const emptySplit = () => Object.fromEntries(locations.map((l) => [l, ""]));
   const [itemId, setItemId] = useState("");
   const [distributor, setDistributor] = useState("");
   const [po, setPo] = useState("");
   const [shipTo, setShipTo] = useState("");
   const [dateOrdered, setDateOrdered] = useState(todayISO());
   const [total, setTotal] = useState("");
-  const [split, setSplit] = useState({ tampa: "", palmetto: "", stpete: "", largo: "" });
+  const [split, setSplit] = useState(emptySplit);
   const [splitTouched, setSplitTouched] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -455,18 +438,17 @@ function ShipmentForm({ items, distributors, onAdd }) {
   }, [query, items]);
 
   const selectedItem = items.find((i) => i.id === itemId);
-  const splitSum = ["tampa", "palmetto", "stpete", "largo"].reduce((s, k) => s + (Number(split[k]) || 0), 0);
+  const splitSum = locations.reduce((s, loc) => s + (Number(split[loc]) || 0), 0);
   const mismatch = total !== "" && splitSum !== Number(total);
 
   const applyAutoSplit = (t) => {
-    if (t === "" || isNaN(Number(t))) { setSplit({ tampa: "", palmetto: "", stpete: "", largo: "" }); return; }
-    const byLoc = weightedSplit(Number(t), LOCATIONS);
-    setSplit({ tampa: byLoc["Tampa"], palmetto: byLoc["Palmetto"], stpete: byLoc["St. Pete"], largo: byLoc["Largo"] });
+    if (t === "" || isNaN(Number(t))) { setSplit(emptySplit()); return; }
+    setSplit(evenSplit(Number(t), locations));
   };
 
   const reset = () => {
     setItemId(""); setQuery(""); setDistributor(""); setPo(""); setShipTo(""); setTotal("");
-    setSplit({ tampa: "", palmetto: "", stpete: "", largo: "" }); setSplitTouched(false); setDateOrdered(todayISO());
+    setSplit(emptySplit()); setSplitTouched(false); setDateOrdered(todayISO());
   };
 
   return (
@@ -474,7 +456,7 @@ function ShipmentForm({ items, distributors, onAdd }) {
       <div className="form-row">
         <div className="form-field form-field-wide">
           <label>Item</label>
-          <input className="text-input" placeholder="Search item name or ID\u2026" value={selectedItem ? selectedItem.name : query}
+          <input className="text-input" placeholder="Search item name or ID…" value={selectedItem ? selectedItem.name : query}
             onChange={(e) => { setQuery(e.target.value); setItemId(""); }} />
           {matches.length > 0 && !itemId && (
             <div className="autocomplete">
@@ -488,7 +470,7 @@ function ShipmentForm({ items, distributors, onAdd }) {
         </div>
         <div className="form-field">
           <label>Distributor</label>
-          <Select value={distributor} onChange={setDistributor} options={distributors} placeholder="Select\u2026" />
+          <Select value={distributor} onChange={setDistributor} options={distributors} placeholder="Select…" />
         </div>
         <div className="form-field">
           <label>PO / Order ref</label>
@@ -504,8 +486,8 @@ function ShipmentForm({ items, distributors, onAdd }) {
         <div className="form-field">
           <label>Ships to</label>
           <select className="select" value={shipTo} onChange={(e) => setShipTo(e.target.value)}>
-            <option value="">Select\u2026</option>
-            {SHIP_LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+            <option value="">Select…</option>
+            {locations.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
         <div className="form-field-note" style={{ flex: "1 1 100%" }}>
@@ -520,16 +502,13 @@ function ShipmentForm({ items, distributors, onAdd }) {
           <input className="text-input" type="number" value={total}
             onChange={(e) => { setTotal(e.target.value); if (!splitTouched) applyAutoSplit(e.target.value); }} />
         </div>
-        {["Tampa", "Palmetto", "St. Pete", "Largo"].map((loc) => {
-          const field = LOC_FIELD[loc];
-          return (
-            <div className="form-field" key={loc}>
-              <label>{loc}</label>
-              <input className="text-input" type="number" value={split[field]}
-                onChange={(e) => { setSplitTouched(true); setSplit({ ...split, [field]: e.target.value }); }} />
-            </div>
-          );
-        })}
+        {locations.map((loc) => (
+          <div className="form-field" key={loc}>
+            <label>{loc}</label>
+            <input className="text-input" type="number" value={split[loc] ?? ""}
+              onChange={(e) => { setSplitTouched(true); setSplit({ ...split, [loc]: e.target.value }); }} />
+          </div>
+        ))}
       </div>
       <div className="form-row">
         <button type="button" className="btn btn-secondary btn-tiny" onClick={() => { setSplitTouched(false); applyAutoSplit(total); }}>
@@ -537,7 +516,7 @@ function ShipmentForm({ items, distributors, onAdd }) {
         </button>
       </div>
 
-      {mismatch && <div className="warn-line">Split ({splitSum}) doesn't match total ordered ({total}) \u2014 you can still save this.</div>}
+      {mismatch && <div className="warn-line">Split ({splitSum}) doesn't match total ordered ({total}) — you can still save this.</div>}
 
       <button
         className="btn btn-primary"
@@ -545,8 +524,8 @@ function ShipmentForm({ items, distributors, onAdd }) {
         onClick={() => {
           onAdd({
             id: uid("SHP"), itemId, distributor, po, shipTo, dateOrdered, status: "Ordered",
-            total: Number(total), tampa: Number(split.tampa) || 0, palmetto: Number(split.palmetto) || 0,
-            stpete: Number(split.stpete) || 0, largo: Number(split.largo) || 0,
+            total: Number(total),
+            split: Object.fromEntries(locations.map((loc) => [loc, Number(split[loc]) || 0])),
             dateReceived: "", receivedBy: "", notes: "", transfersCreated: false,
           });
           reset();
@@ -558,15 +537,15 @@ function ShipmentForm({ items, distributors, onAdd }) {
   );
 }
 
-function ShipmentRow({ s, item, onUpdate }) {
+function ShipmentRow({ s, item, onUpdate, locations }) {
+  const draftFrom = () => Object.fromEntries(locations.map((loc) => [loc, shipQty(s, loc)]));
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ tampa: s.tampa, palmetto: s.palmetto, stpete: s.stpete, largo: s.largo });
+  const [draft, setDraft] = useState(draftFrom);
 
-  const startEdit = () => { setDraft({ tampa: s.tampa, palmetto: s.palmetto, stpete: s.stpete, largo: s.largo }); setEditing(true); };
+  const startEdit = () => { setDraft(draftFrom()); setEditing(true); };
   const save = () => {
     onUpdate(s.id, {
-      tampa: Number(draft.tampa) || 0, palmetto: Number(draft.palmetto) || 0,
-      stpete: Number(draft.stpete) || 0, largo: Number(draft.largo) || 0,
+      split: Object.fromEntries(locations.map((loc) => [loc, Number(draft[loc]) || 0])),
     });
     setEditing(false);
   };
@@ -576,29 +555,26 @@ function ShipmentRow({ s, item, onUpdate }) {
       <div className="ship-main">
         <div className="flag-name">{item ? item.name : s.itemId}</div>
         <div className="flag-meta">
-          {s.distributor || "No distributor"} \u00b7 ordered {fmtDate(s.dateOrdered)} \u00b7 total {s.total}{s.shipTo ? " \u00b7 ships to " + s.shipTo : ""}
+          {s.distributor || "No distributor"} · ordered {fmtDate(s.dateOrdered)} · total {s.total}{s.shipTo ? " · ships to " + s.shipTo : ""}
         </div>
         {!editing ? (
           <div className="flag-meta muted">
-            Tampa {s.tampa} \u00b7 Palmetto {s.palmetto} \u00b7 St. Pete {s.stpete} \u00b7 Largo {s.largo}
+            {locations.map((loc) => loc + " " + shipQty(s, loc)).join(" · ")}
           </div>
         ) : (
           <div className="form-row" style={{ marginTop: 6 }}>
-            {["Tampa", "Palmetto", "St. Pete", "Largo"].map((loc) => {
-              const field = LOC_FIELD[loc];
-              return (
-                <div className="form-field" key={loc}>
-                  <label>{loc}</label>
-                  <input className="text-input" type="number" value={draft[field]}
-                    onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} />
-                </div>
-              );
-            })}
+            {locations.map((loc) => (
+              <div className="form-field" key={loc}>
+                <label>{loc}</label>
+                <input className="text-input" type="number" value={draft[loc] ?? ""}
+                  onChange={(e) => setDraft({ ...draft, [loc]: e.target.value })} />
+              </div>
+            ))}
           </div>
         )}
-        {s.transfersCreated && <div className="flag-meta" style={{ color: "var(--good)" }}>Transfers created for other locations \u2014 see Transfers</div>}
+        {s.transfersCreated && <div className="flag-meta" style={{ color: "var(--good)" }}>Transfers created for other locations — see Transfers</div>}
         {editing && s.transfersCreated && (
-          <div className="warn-line">Transfers were already created from this shipment \u2014 editing quantities now won't update them.</div>
+          <div className="warn-line">Transfers were already created from this shipment — editing quantities now won't update them.</div>
         )}
       </div>
       <div className="ship-actions">
@@ -627,7 +603,7 @@ function ShipmentRow({ s, item, onUpdate }) {
   );
 }
 
-function ShipmentsView({ items, shipments, distributors, staffList, onAdd, onUpdate }) {
+function ShipmentsView({ items, shipments, distributors, onAdd, onUpdate, locations }) {
   const [filter, setFilter] = useState("All");
   const itemById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
   const filtered = shipments.filter((s) => filter === "All" || s.status === filter).sort((a, b) => (b.dateOrdered || "").localeCompare(a.dateOrdered || ""));
@@ -636,12 +612,12 @@ function ShipmentsView({ items, shipments, distributors, staffList, onAdd, onUpd
     <div className="view">
       <div className="view-header">
         <h1>Shipments</h1>
-        <p className="view-sub">Log what you ordered \u2014 mark it Received when it arrives to update inventory automatically.</p>
+        <p className="view-sub">Log what you ordered — mark it Received when it arrives to update inventory automatically.</p>
       </div>
 
       <div className="panel">
         <div className="panel-header"><h2>Log a new order</h2></div>
-        <ShipmentForm items={items} distributors={distributors} onAdd={onAdd} />
+        <ShipmentForm items={items} distributors={distributors} onAdd={onAdd} locations={locations} />
       </div>
 
       <div className="panel">
@@ -658,7 +634,7 @@ function ShipmentsView({ items, shipments, distributors, staffList, onAdd, onUpd
         ) : (
           <div className="ship-list">
             {filtered.map((s) => (
-              <ShipmentRow key={s.id} s={s} item={itemById[s.itemId]} onUpdate={onUpdate} />
+              <ShipmentRow key={s.id} s={s} item={itemById[s.itemId]} onUpdate={onUpdate} locations={locations} />
             ))}
           </div>
         )}
@@ -668,11 +644,11 @@ function ShipmentsView({ items, shipments, distributors, staffList, onAdd, onUpd
 }
 
 /* ============================== ORDERING QUEUE ============================== */
-function LocationToggle({ locations, onChange }) {
-  const allSelected = LOCATIONS.every((l) => locations.includes(l));
+function LocationToggle({ locations, onChange, allLocations }) {
+  const allSelected = allLocations.length > 0 && allLocations.every((l) => locations.includes(l));
   return (
     <div className="loc-toggle">
-      {LOCATIONS.map((loc) => (
+      {allLocations.map((loc) => (
         <button key={loc} type="button"
           className={"loc-chip" + (locations.includes(loc) ? " loc-chip-active" : "")}
           onClick={() => {
@@ -683,14 +659,14 @@ function LocationToggle({ locations, onChange }) {
         </button>
       ))}
       <button type="button" className={"loc-chip loc-chip-all" + (allSelected ? " loc-chip-active" : "")}
-        onClick={() => onChange(allSelected ? [locations[0] || LOCATIONS[0]] : [...LOCATIONS])}>
-        All 4
+        onClick={() => onChange(allSelected ? [locations[0] || allLocations[0]] : [...allLocations])}>
+        All
       </button>
     </div>
   );
 }
 
-function QueueRow({ q, item, distributors, staffList, onUpdate }) {
+function QueueRow({ q, item, distributors, onUpdate, locations }) {
   const [notes, setNotes] = useState(q.notes || "");
   const ready = q.distributor && Number(q.qtyToOrder) > 0;
 
@@ -712,12 +688,12 @@ function QueueRow({ q, item, distributors, staffList, onUpdate }) {
             const d = q.details[loc];
             const suffix = d && d.qty !== null && d.qty !== undefined ? ": " + d.qty : "";
             return loc + suffix;
-          }).join("  \u00b7  ")}
+          }).join("  ·  ")}
         </div>
         <div style={{ marginTop: 6 }}>
-          <LocationToggle locations={q.locations} onChange={handleLocationChange} />
+          <LocationToggle locations={q.locations} onChange={handleLocationChange} allLocations={locations} />
         </div>
-        {q.shipmentCreated && <div className="flag-meta" style={{ color: "var(--good)" }}>Shipment logged automatically \u00b7 split across {q.locations.length} location{q.locations.length > 1 ? "s" : ""}</div>}
+        {q.shipmentCreated && <div className="flag-meta" style={{ color: "var(--good)" }}>Shipment logged automatically · split across {q.locations.length} location{q.locations.length > 1 ? "s" : ""}</div>}
       </div>
       <div className="queue-fields">
         <input className="text-input qty-order-input" type="number" placeholder="Qty to order"
@@ -726,9 +702,8 @@ function QueueRow({ q, item, distributors, staffList, onUpdate }) {
         <select className="select" value={q.status} onChange={(e) => onUpdate(q.id, { status: e.target.value })}>
           {["Pending", "Ordered", "Received", "Not Needed"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <Select value={q.staff} onChange={(v) => onUpdate(q.id, { staff: v })} options={staffList} placeholder="Staff" />
       </div>
-      <textarea className="text-input queue-notes" rows={2} placeholder="Notes or special instructions\u2026"
+      <textarea className="text-input queue-notes" rows={2} placeholder="Notes or special instructions…"
         value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => onUpdate(q.id, { notes })} />
       {q.status === "Ordered" && !ready && (
         <div className="warn-line">Add a distributor and a quantity to auto-log this as a shipment.</div>
@@ -737,7 +712,7 @@ function QueueRow({ q, item, distributors, staffList, onUpdate }) {
   );
 }
 
-function AddToQueueForm({ items, onAdd }) {
+function AddToQueueForm({ items, onAdd, locations: allLocations }) {
   const [query, setQuery] = useState("");
   const [itemId, setItemId] = useState("");
   const [locations, setLocations] = useState([]);
@@ -761,7 +736,7 @@ function AddToQueueForm({ items, onAdd }) {
       <div className="form-row">
         <div className="form-field form-field-wide">
           <label>Item</label>
-          <input className="text-input" placeholder="Search item name or ID\u2026" value={selectedItem ? selectedItem.name : query}
+          <input className="text-input" placeholder="Search item name or ID…" value={selectedItem ? selectedItem.name : query}
             onChange={(e) => { setQuery(e.target.value); setItemId(""); }} />
           {matches.length > 0 && !itemId && (
             <div className="autocomplete">
@@ -777,7 +752,7 @@ function AddToQueueForm({ items, onAdd }) {
       <div className="form-row">
         <div className="form-field form-field-wide">
           <label>Locations</label>
-          <LocationToggle locations={locations} onChange={setLocations} />
+          <LocationToggle locations={locations} onChange={setLocations} allLocations={allLocations} />
         </div>
       </div>
       <div className="form-row">
@@ -791,7 +766,7 @@ function AddToQueueForm({ items, onAdd }) {
   );
 }
 
-function QueueView({ items, queue, distributors, staffList, onUpdate, onManualAdd }) {
+function QueueView({ items, queue, distributors, onUpdate, onManualAdd, locations }) {
   const itemById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
   const [showHistory, setShowHistory] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("All");
@@ -813,14 +788,14 @@ function QueueView({ items, queue, distributors, staffList, onUpdate, onManualAd
           <span className="pill">{pending.length} pending</span>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <AddToQueueForm items={items} onAdd={onManualAdd} />
+          <AddToQueueForm items={items} onAdd={onManualAdd} locations={locations} />
         </div>
         {pending.length === 0 ? (
           <div className="empty-state">Nothing pending right now.</div>
         ) : (
           <div className="queue-list">
             {pending.map((q) => (
-              <QueueRow key={q.id} q={q} item={itemById[q.itemId]} distributors={distributors} staffList={staffList} onUpdate={onUpdate} />
+              <QueueRow key={q.id} q={q} item={itemById[q.itemId]} distributors={distributors} onUpdate={onUpdate} locations={locations} />
             ))}
           </div>
         )}
@@ -842,7 +817,7 @@ function QueueView({ items, queue, distributors, staffList, onUpdate, onManualAd
             ) : (
               <div className="queue-list">
                 {history.map((q) => (
-                  <QueueRow key={q.id} q={q} item={itemById[q.itemId]} distributors={distributors} staffList={staffList} onUpdate={onUpdate} />
+                  <QueueRow key={q.id} q={q} item={itemById[q.itemId]} distributors={distributors} onUpdate={onUpdate} locations={locations} />
                 ))}
               </div>
             )}
@@ -854,31 +829,35 @@ function QueueView({ items, queue, distributors, staffList, onUpdate, onManualAd
 }
 
 /* ============================== INVENTORY ============================== */
-function InventoryView({ items, checks, shipments, transfers }) {
+function InventoryView({ items, checks, shipments, transfers, locations }) {
   const qtyItems = items.filter((i) => i.type === "Quantity");
   const [search, setSearch] = useState("");
   const filtered = qtyItems.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
+
+  // Grid columns scale with however many locations the practice has:
+  // Item, Threshold, one per location, Total, Status.
+  const gridCols = { gridTemplateColumns: `2fr 0.8fr ${locations.map(() => "0.8fr").join(" ")} 0.7fr 1fr` };
 
   return (
     <div className="view">
       <div className="view-header">
         <h1>Inventory snapshot</h1>
-        <p className="view-sub">Live stock for your {qtyItems.length} quantity-tracked items \u2014 last count plus anything received since.</p>
+        <p className="view-sub">Live stock for your {qtyItems.length} quantity-tracked items — last count plus anything received since.</p>
       </div>
       <div className="panel">
-        <input className="text-input" placeholder="Search items\u2026" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 12 }} />
-        <div className="inv-table">
-          <div className="inv-head">
+        <input className="text-input" placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 12 }} />
+        <div className="inv-table" style={{ overflowX: "auto" }}>
+          <div className="inv-head" style={gridCols}>
             <span>Item</span><span>Threshold</span>
-            {LOCATIONS.map((l) => <span key={l}>{l}</span>)}
+            {locations.map((l) => <span key={l}>{l}</span>)}
             <span>Total</span><span>Status</span>
           </div>
           {filtered.map((item) => {
-            const stocks = LOCATIONS.map((loc) => liveStock(item, loc, checks, shipments, transfers));
+            const stocks = locations.map((loc) => liveStock(item, loc, checks, shipments, transfers));
             const total = stocks.reduce((a, b) => a + b, 0);
             const status = invStatus(item, total);
             return (
-              <div className="inv-row" key={item.id}>
+              <div className="inv-row" key={item.id} style={gridCols}>
                 <span className="inv-name">{item.name}</span>
                 <span className="muted">{item.threshold}</span>
                 {stocks.map((s, i) => <span key={i}>{s}</span>)}
@@ -894,7 +873,7 @@ function InventoryView({ items, checks, shipments, transfers }) {
 }
 
 /* ============================== TRANSFERS ============================== */
-function TransfersView({ items, transfers, staffList, onUpdate }) {
+function TransfersView({ items, transfers, onUpdate }) {
   const itemById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
   const [filter, setFilter] = useState("Pending");
 
@@ -908,7 +887,7 @@ function TransfersView({ items, transfers, staffList, onUpdate }) {
         <h1>Transfers between locations</h1>
         <p className="view-sub">
           When a shipment lands at one location but part of it belongs elsewhere, it shows up here until
-          someone confirms it actually made the move \u2014 that location's inventory only counts it once you do.
+          someone confirms it actually made the move — that location's inventory only counts it once you do.
         </p>
       </div>
       <div className="panel">
@@ -930,13 +909,12 @@ function TransfersView({ items, transfers, staffList, onUpdate }) {
                 <div className="queue-row" key={t.id}>
                   <div className="queue-main">
                     <div className="flag-name">{item ? item.name : t.itemId}</div>
-                    <div className="flag-meta">{t.fromLocation} \u2192 {t.toLocation} \u00b7 qty {t.qty} \u00b7 logged {fmtDate(t.dateCreated)}</div>
-                    {t.status === "Received" && <div className="flag-meta" style={{ color: "var(--good)" }}>Received at {t.toLocation} {fmtDate(t.dateReceived)}{t.receivedBy ? " by " + t.receivedBy : ""}</div>}
+                    <div className="flag-meta">{t.fromLocation} → {t.toLocation} · qty {t.qty} · logged {fmtDate(t.dateCreated)}</div>
+                    {t.status === "Received" && <div className="flag-meta" style={{ color: "var(--good)" }}>Received at {t.toLocation} {fmtDate(t.dateReceived)}</div>}
                   </div>
                   {t.status === "Pending" ? (
                     <div className="queue-fields">
-                      <Select value={t.receivedBy} onChange={(v) => onUpdate(t.id, { receivedBy: v })} options={staffList} placeholder="Received by" />
-                      <button className="btn btn-primary btn-tiny" onClick={() => onUpdate(t.id, { status: "Received", dateReceived: todayISO() })}>
+                      <button className="btn btn-primary btn-tiny" onClick={() => onUpdate(t.id)}>
                         Confirm arrived at {t.toLocation}
                       </button>
                     </div>
@@ -954,27 +932,62 @@ function TransfersView({ items, transfers, staffList, onUpdate }) {
 }
 
 /* ============================== HEADER & DRAWER ============================== */
-function Header({ onMenuClick }) {
+function initialsOf(name) {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
+
+function HeaderAccount({ profile, practice, onSignOut }) {
+  const [open, setOpen] = useState(false);
+  const who = profile?.display_name || profile?.email || "Account";
+  const role = profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : "Staff";
+  return (
+    <div className="header-account">
+      <button className="account-btn" onClick={() => setOpen((o) => !o)} aria-label="Account menu">
+        <span className="account-avatar">{initialsOf(who)}</span>
+      </button>
+      {open && (
+        <>
+          <div className="account-backdrop" onClick={() => setOpen(false)} />
+          <div className="account-menu">
+            <div className="account-menu-name">{who}</div>
+            <div className="account-menu-meta">{role}{practice?.name ? " · " + practice.name : ""}</div>
+            {practice?.join_code && <div className="account-menu-code">Join code: <span>{practice.join_code}</span></div>}
+            <button className="account-menu-signout" onClick={onSignOut}>Sign out</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Header({ onMenuClick, practiceName, practiceLogo, profile, practice, onSignOut }) {
   return (
     <div className="brand-header">
       <button className="hamburger-btn" onClick={onMenuClick} aria-label="Open menu">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 5h16M2 10h16M2 15h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
       </button>
-      <img src={LOGO_SRC} alt="Mann Orthodontics" className="brand-logo" />
+      {/* The practice's own logo once inside their tenant; Mann (practice #1)
+          has no uploaded logo_url, so it falls back to its existing /logo.jpg. */}
+      <img src={practiceLogo || LOGO_SRC} alt="" className="brand-logo" />
       <div className="brand-text">
-        <div className="brand-name">Mann Orthodontics</div>
+        <div className="brand-name">{practiceName || "Supply System"}</div>
         <div className="brand-tag">Supply System</div>
       </div>
+      <HeaderAccount profile={profile} practice={practice} onSignOut={onSignOut} />
     </div>
   );
 }
 
 function SideDrawer({ open, view, setView, onClose, pendingTransfers }) {
   const items = [
-    { key: "inventory", label: "Inventory", icon: "\u2261" },
-    { key: "transfers", label: "Transfers between locations", icon: "\u21c4", count: pendingTransfers },
-    { key: "items", label: "Manage items", icon: "\u25a6" },
-    { key: "lists", label: "Staff and distributors", icon: "\u263a" },
+    { key: "inventory", label: "Inventory", icon: "≡" },
+    { key: "transfers", label: "Transfers between locations", icon: "⇄", count: pendingTransfers },
+    { key: "items", label: "Manage items", icon: "▦" },
+    { key: "locations", label: "Locations", icon: "⌘" },
+    { key: "categories", label: "Categories", icon: "▤" },
+    { key: "distributors", label: "Distributors", icon: "☎" },
   ];
   return (
     <>
@@ -997,49 +1010,438 @@ function SideDrawer({ open, view, setView, onClose, pendingTransfers }) {
   );
 }
 
-/* ============================== STAFF & DISTRIBUTORS ============================== */
-function NameManager({ title, names, onAdd, onRemove }) {
-  const [value, setValue] = useState("");
+/* ============================== DISTRIBUTORS ============================== */
+// A full add/edit form for one distributor's directory entry. onSubmit returns
+// a promise resolving to {error?} so validation/DB errors surface inline.
+function DistributorForm({ initial, submitLabel, onSubmit, onCancel }) {
+  const [f, setF] = useState(() => ({
+    name: initial?.name || "", account_number: initial?.account_number || "", phone: initial?.phone || "",
+    order_email: initial?.order_email || "", website_url: initial?.website_url || "",
+    rep_name: initial?.rep_name || "", rep_phone: initial?.rep_phone || "", rep_email: initial?.rep_email || "",
+    notes: initial?.notes || "",
+  }));
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  async function submit(e) {
+    e.preventDefault();
+    setErr("");
+    if (!f.name.trim()) { setErr("Enter a distributor name."); return; }
+    setBusy(true);
+    const res = await onSubmit(f);
+    setBusy(false);
+    if (res && res.error) setErr(res.error);
+  }
+
+  return (
+    <form className="add-item-form" onSubmit={submit}>
+      <div className="form-row">
+        <div className="form-field form-field-wide">
+          <label>Name</label>
+          <input className="text-input" value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Henry Schein" autoFocus />
+        </div>
+        <div className="form-field">
+          <label>Account #</label>
+          <input className="text-input" value={f.account_number} onChange={(e) => set("account_number", e.target.value)} placeholder="Your customer code" />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="form-field">
+          <label>Phone</label>
+          <input className="text-input" value={f.phone} onChange={(e) => set("phone", e.target.value)} />
+        </div>
+        <div className="form-field">
+          <label>Order email</label>
+          <input className="text-input" type="email" value={f.order_email} onChange={(e) => set("order_email", e.target.value)} />
+        </div>
+        <div className="form-field">
+          <label>Website</label>
+          <input className="text-input" value={f.website_url} onChange={(e) => set("website_url", e.target.value)} placeholder="https://" />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="form-field">
+          <label>Rep name</label>
+          <input className="text-input" value={f.rep_name} onChange={(e) => set("rep_name", e.target.value)} />
+        </div>
+        <div className="form-field">
+          <label>Rep phone</label>
+          <input className="text-input" value={f.rep_phone} onChange={(e) => set("rep_phone", e.target.value)} />
+        </div>
+        <div className="form-field">
+          <label>Rep email</label>
+          <input className="text-input" type="email" value={f.rep_email} onChange={(e) => set("rep_email", e.target.value)} />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="form-field form-field-wide">
+          <label>Notes</label>
+          <textarea className="text-input" rows={2} value={f.notes} onChange={(e) => set("notes", e.target.value)} />
+        </div>
+      </div>
+      {err && <div className="warn-line">{err}</div>}
+      <div className="form-row">
+        <button className="btn btn-primary" type="submit" disabled={busy || !f.name.trim()}>{busy ? "Saving…" : submitLabel}</button>
+        <button className="btn btn-secondary" type="button" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+function DistributorDetail({ d }) {
+  const lines = [];
+  if (d.account_number) lines.push(["Account #", d.account_number]);
+  if (d.phone) lines.push(["Phone", d.phone]);
+  if (d.order_email) lines.push(["Order email", d.order_email]);
+  if (d.website_url) lines.push(["Website", d.website_url]);
+  const rep = [d.rep_name, d.rep_phone, d.rep_email].filter(Boolean).join(" · ");
+  if (rep) lines.push(["Rep", rep]);
+  if (d.notes) lines.push(["Notes", d.notes]);
+  if (lines.length === 0) return <div className="flag-meta muted">No contact details yet.</div>;
+  return (
+    <div className="flag-meta" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {lines.map(([k, v]) => <div key={k}><span className="muted">{k}:</span> {v}</div>)}
+    </div>
+  );
+}
+
+function DistributorDirectory({ distributors, onAdd, onUpdate, onRemove }) {
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [confirmId, setConfirmId] = useState(null);
+
   return (
     <div className="panel">
-      <div className="panel-header"><h2>{title}</h2><span className="pill">{names.length}</span></div>
-      <div className="name-add-row">
-        <input className="text-input" placeholder={"Add a " + title.toLowerCase().replace(/s$/, "") + "\u2026"}
-          value={value} onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && value.trim()) { onAdd(value.trim()); setValue(""); } }} />
-        <button className="btn btn-accent btn-tiny" disabled={!value.trim()} onClick={() => { onAdd(value.trim()); setValue(""); }}>Add</button>
+      <div className="panel-header">
+        <h2>All distributors</h2>
+        <span className="pill">{distributors.length}</span>
       </div>
-      <div className="name-list">
-        {names.map((n) => (
-          <div className="name-row" key={n}>
-            <span>{n}</span>
-            <button className="name-remove" onClick={() => onRemove(n)} aria-label={"Remove " + n}>\u00d7</button>
+
+      {adding ? (
+        <DistributorForm submitLabel="Add distributor"
+          onSubmit={async (fields) => { const r = await onAdd(fields); if (!r?.error) setAdding(false); return r; }}
+          onCancel={() => setAdding(false)} />
+      ) : (
+        <button className="btn btn-accent" onClick={() => setAdding(true)}>+ Add distributor</button>
+      )}
+
+      <div className="manage-list" style={{ marginTop: 12 }}>
+        {distributors.map((d) => (
+          <div className="manage-row" key={d.id}>
+            {editingId === d.id ? (
+              <DistributorForm initial={d} submitLabel="Save"
+                onSubmit={async (fields) => { const r = await onUpdate(d.id, fields); if (!r?.error) setEditingId(null); return r; }}
+                onCancel={() => setEditingId(null)} />
+            ) : (
+              <>
+                <div className="manage-main">
+                  <div className="flag-name">{d.name}</div>
+                  <DistributorDetail d={d} />
+                </div>
+                <div className="manage-actions">
+                  {confirmId === d.id ? (
+                    <>
+                      <button className="btn btn-danger btn-tiny" onClick={() => { onRemove(d.id); setConfirmId(null); }}>Confirm delete</button>
+                      <button className="btn btn-secondary btn-tiny" onClick={() => setConfirmId(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn btn-secondary btn-tiny" onClick={() => setEditingId(d.id)}>Edit</button>
+                      <button className="btn btn-danger btn-tiny" onClick={() => setConfirmId(d.id)}>Delete</button>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         ))}
-        {names.length === 0 && <div className="empty-state">None added yet.</div>}
+        {distributors.length === 0 && <div className="empty-state">No distributors yet.</div>}
       </div>
     </div>
   );
 }
 
-function StaffDistributors({ staff, distributors, onAddStaff, onRemoveStaff, onAddDistributor, onRemoveDistributor }) {
+function DistributorsScreen({ distributorRows, onAdd, onUpdate, onRemove }) {
   return (
     <div className="view">
       <div className="view-header">
-        <h1>Staff and distributors</h1>
-        <p className="view-sub">Removing someone only affects future dropdowns \u2014 past check-ins and shipments keep their original names.</p>
+        <h1>Distributors</h1>
+        <p className="view-sub">Your vendor directory — contact info, account numbers, reps, and where to send orders. Removing one only affects future dropdowns; past shipments keep their name.</p>
       </div>
-      <NameManager title="Staff" names={staff} onAdd={onAddStaff} onRemove={onRemoveStaff} />
-      <NameManager title="Distributors" names={distributors} onAdd={onAddDistributor} onRemove={onRemoveDistributor} />
+      <DistributorDirectory distributors={distributorRows} onAdd={onAdd} onUpdate={onUpdate} onRemove={onRemove} />
+    </div>
+  );
+}
+
+/* ============================== LOCATIONS ============================== */
+// Shown only when a practice somehow has zero locations (safety net). Adding the
+// first one flips MainApp out of this guard and into the normal app.
+function LocationSetup({ practiceName, onAdd, onSignOut, error }) {
+  const [name, setName] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setErr("");
+    setBusy(true);
+    const res = await onAdd(name);
+    setBusy(false);
+    if (res && res.error) setErr(res.error);
+    else setName("");
+  }
+
+  return (
+    <div className="app-loading" style={{ justifyContent: "flex-start", paddingTop: 80 }}>
+      <style>{STYLES}</style>
+      <div className="panel" style={{ maxWidth: 420, width: "100%" }}>
+        <div className="panel-header"><h2>Add your first location</h2></div>
+        <p className="view-sub" style={{ marginBottom: 14 }}>
+          {practiceName || "Your practice"} needs at least one location before you can track supplies.
+          You can rename it or add more later under Locations.
+        </p>
+        <form onSubmit={submit} className="form-row" style={{ alignItems: "flex-end" }}>
+          <div className="form-field form-field-wide">
+            <label>Location name</label>
+            <input className="text-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Main Office" autoFocus />
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={busy || !name.trim()}>{busy ? "Adding…" : "Add location"}</button>
+        </form>
+        {(err || error) && <div className="warn-line" style={{ marginTop: 10 }}>{err || error}</div>}
+      </div>
+      <button className="btn btn-secondary btn-tiny" style={{ marginTop: 16 }} onClick={onSignOut}>Sign out</button>
+    </div>
+  );
+}
+
+function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder }) {
+  const [newName, setNewName] = useState("");
+  const [addErr, setAddErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const [confirmId, setConfirmId] = useState(null); // id pending delete confirmation
+  const [rowErr, setRowErr] = useState({}); // id -> message
+
+  const setError = (id, msg) => setRowErr((p) => ({ ...p, [id]: msg }));
+
+  async function add(e) {
+    e.preventDefault();
+    setAddErr("");
+    setBusy(true);
+    const res = await onAdd(newName);
+    setBusy(false);
+    if (res && res.error) setAddErr(res.error);
+    else setNewName("");
+  }
+
+  async function saveRename(id) {
+    const res = await onRename(id, editValue);
+    if (res && res.error) { setError(id, res.error); return; }
+    setError(id, ""); setEditingId(null);
+  }
+
+  async function confirmRemove(loc) {
+    const res = await onDelete(loc.id);
+    setConfirmId(null);
+    if (res && res.error) setError(loc.id, res.error);
+  }
+
+  function move(index, dir) {
+    const target = index + dir;
+    if (target < 0 || target >= locations.length) return;
+    const ids = locations.map((l) => l.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    onReorder(ids);
+  }
+
+  return (
+    <div className="view">
+      <div className="view-header">
+        <h1>Locations</h1>
+        <p className="view-sub">Add, rename, reorder, or remove the offices this practice tracks supplies for. Names must be unique.</p>
+      </div>
+
+      <div className="panel">
+        <div className="panel-header"><h2>Add a location</h2></div>
+        <form onSubmit={add} className="form-row" style={{ alignItems: "flex-end" }}>
+          <div className="form-field form-field-wide">
+            <label>Location name</label>
+            <input className="text-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Downtown" />
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={busy || !newName.trim()}>{busy ? "Adding…" : "Add location"}</button>
+        </form>
+        {addErr && <div className="warn-line" style={{ marginTop: 10 }}>{addErr}</div>}
+      </div>
+
+      <div className="panel">
+        <div className="panel-header">
+          <h2>Current locations</h2>
+          <span className="pill">{locations.length}</span>
+        </div>
+        <div className="manage-list">
+          {locations.map((loc, i) => (
+            <div className="manage-row" key={loc.id}>
+              {editingId === loc.id ? (
+                <div className="form-row form-field-wide" style={{ flex: 1, alignItems: "flex-end" }}>
+                  <div className="form-field form-field-wide">
+                    <input className="text-input" value={editValue} onChange={(e) => setEditValue(e.target.value)} autoFocus />
+                  </div>
+                  <button className="btn btn-primary btn-tiny" onClick={() => saveRename(loc.id)}>Save</button>
+                  <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(null); setError(loc.id, ""); }}>Cancel</button>
+                </div>
+              ) : confirmId === loc.id ? (
+                <>
+                  <div className="manage-main">
+                    <div className="flag-name">{loc.name}</div>
+                    <div className="warn-line" style={{ marginTop: 6 }}>
+                      Any check-in or shipment data recorded under "{loc.name}" will be orphaned until the
+                      data-layer migration (step 3). This can't be undone.
+                    </div>
+                  </div>
+                  <div className="manage-actions">
+                    <button className="btn btn-danger btn-tiny" onClick={() => confirmRemove(loc)}>Confirm delete</button>
+                    <button className="btn btn-secondary btn-tiny" onClick={() => setConfirmId(null)}>Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="manage-main">
+                    <div className="flag-name">{loc.name}</div>
+                    {rowErr[loc.id] && <div className="warn-line" style={{ marginTop: 6 }}>{rowErr[loc.id]}</div>}
+                  </div>
+                  <div className="manage-actions">
+                    <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+                    <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === locations.length - 1} aria-label="Move down">↓</button>
+                    <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(loc.id); setEditValue(loc.name); setError(loc.id, ""); }}>Rename</button>
+                    <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(loc.id); setError(loc.id, ""); }} disabled={locations.length <= 1}>Delete</button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== CATEGORIES ============================== */
+function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder }) {
+  const [newName, setNewName] = useState("");
+  const [addErr, setAddErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const [confirmId, setConfirmId] = useState(null);
+  const [rowErr, setRowErr] = useState({});
+
+  const setError = (id, msg) => setRowErr((p) => ({ ...p, [id]: msg }));
+
+  async function add(e) {
+    e.preventDefault();
+    setAddErr("");
+    setBusy(true);
+    const res = await onAdd(newName);
+    setBusy(false);
+    if (res && res.error) setAddErr(res.error);
+    else setNewName("");
+  }
+  async function saveRename(id) {
+    const res = await onRename(id, editValue);
+    if (res && res.error) { setError(id, res.error); return; }
+    setError(id, ""); setEditingId(null);
+  }
+  async function confirmRemove(cat) {
+    const res = await onDelete(cat.id);
+    setConfirmId(null);
+    if (res && res.error) setError(cat.id, res.error);
+  }
+  function move(index, dir) {
+    const target = index + dir;
+    if (target < 0 || target >= categories.length) return;
+    const ids = categories.map((c) => c.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    onReorder(ids);
+  }
+
+  return (
+    <div className="view">
+      <div className="view-header">
+        <h1>Categories</h1>
+        <p className="view-sub">A fixed list to categorize items — so the same category can't drift into several spellings. Names must be unique.</p>
+      </div>
+
+      <div className="panel">
+        <div className="panel-header"><h2>Add a category</h2></div>
+        <form onSubmit={add} className="form-row" style={{ alignItems: "flex-end" }}>
+          <div className="form-field form-field-wide">
+            <label>Category name</label>
+            <input className="text-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. PPE" />
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={busy || !newName.trim()}>{busy ? "Adding…" : "Add category"}</button>
+        </form>
+        {addErr && <div className="warn-line" style={{ marginTop: 10 }}>{addErr}</div>}
+      </div>
+
+      <div className="panel">
+        <div className="panel-header">
+          <h2>All categories</h2>
+          <span className="pill">{categories.length}</span>
+        </div>
+        <div className="manage-list">
+          {categories.map((cat, i) => (
+            <div className="manage-row" key={cat.id}>
+              {editingId === cat.id ? (
+                <div className="form-row form-field-wide" style={{ flex: 1, alignItems: "flex-end" }}>
+                  <div className="form-field form-field-wide">
+                    <input className="text-input" value={editValue} onChange={(e) => setEditValue(e.target.value)} autoFocus />
+                  </div>
+                  <button className="btn btn-primary btn-tiny" onClick={() => saveRename(cat.id)}>Save</button>
+                  <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(null); setError(cat.id, ""); }}>Cancel</button>
+                </div>
+              ) : confirmId === cat.id ? (
+                <>
+                  <div className="manage-main">
+                    <div className="flag-name">{cat.name}</div>
+                    <div className="warn-line" style={{ marginTop: 6 }}>
+                      Items in "{cat.name}" will become uncategorized (they aren't deleted). This can't be undone.
+                    </div>
+                  </div>
+                  <div className="manage-actions">
+                    <button className="btn btn-danger btn-tiny" onClick={() => confirmRemove(cat)}>Confirm delete</button>
+                    <button className="btn btn-secondary btn-tiny" onClick={() => setConfirmId(null)}>Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="manage-main">
+                    <div className="flag-name">{cat.name}</div>
+                    {rowErr[cat.id] && <div className="warn-line" style={{ marginTop: 6 }}>{rowErr[cat.id]}</div>}
+                  </div>
+                  <div className="manage-actions">
+                    <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+                    <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === categories.length - 1} aria-label="Move down">↓</button>
+                    <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(cat.id); setEditValue(cat.name); setError(cat.id, ""); }}>Rename</button>
+                    <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(cat.id); setError(cat.id, ""); }}>Delete</button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {categories.length === 0 && <div className="empty-state">No categories yet.</div>}
+        </div>
+      </div>
     </div>
   );
 }
 
 /* ============================== MANAGE ITEMS ============================== */
-function CabinetInputs({ cabinets, onChange }) {
+function CabinetInputs({ cabinets, onChange, locations }) {
   return (
     <div className="form-row">
-      {LOCATIONS.map((loc) => (
+      {locations.map((loc) => (
         <div className="form-field" key={loc}>
           <label>{loc} cabinet</label>
           <input className="text-input" value={cabinets[loc] || ""} onChange={(e) => onChange({ ...cabinets, [loc]: e.target.value })} placeholder="e.g. 3" />
@@ -1049,21 +1451,26 @@ function CabinetInputs({ cabinets, onChange }) {
   );
 }
 
-function AddItemForm({ onAdd }) {
+function AddItemForm({ onAdd, locations, categories }) {
+  const blankMap = () => Object.fromEntries(locations.map((l) => [l, ""]));
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
-  const [cabinets, setCabinets] = useState({ Tampa: "", Palmetto: "", "St. Pete": "", Largo: "" });
+  const [cabinets, setCabinets] = useState(blankMap);
   const [sameCabinet, setSameCabinet] = useState(true);
   const [type, setType] = useState("Good/Low");
   const [unit, setUnit] = useState("");
   const [threshold, setThreshold] = useState("");
-  const [qty, setQty] = useState({ tampa: "", palmetto: "", stpete: "", largo: "" });
+  const [categoryId, setCategoryId] = useState("");
+  const [cost, setCost] = useState("");
+  const [qty, setQty] = useState(blankMap);
   const [open, setOpen] = useState(false);
 
+  const setAllCabinets = (v) => setCabinets(Object.fromEntries(locations.map((l) => [l, v])));
+
   const reset = () => {
-    setName(""); setDesc(""); setCabinets({ Tampa: "", Palmetto: "", "St. Pete": "", Largo: "" });
+    setName(""); setDesc(""); setCabinets(blankMap());
     setSameCabinet(true); setType("Good/Low"); setUnit(""); setThreshold("");
-    setQty({ tampa: "", palmetto: "", stpete: "", largo: "" });
+    setCategoryId(""); setCost(""); setQty(blankMap());
   };
 
   if (!open) {
@@ -1087,10 +1494,7 @@ function AddItemForm({ onAdd }) {
         <label className="checkbox-line">
           <input type="checkbox" checked={sameCabinet} onChange={(e) => {
             setSameCabinet(e.target.checked);
-            if (e.target.checked) {
-              const v = cabinets.Tampa;
-              setCabinets({ Tampa: v, Palmetto: v, "St. Pete": v, Largo: v });
-            }
+            if (e.target.checked) setAllCabinets(cabinets[locations[0]] || "");
           }} />
           Same cabinet number at every location
         </label>
@@ -1100,14 +1504,28 @@ function AddItemForm({ onAdd }) {
         <div className="form-row">
           <div className="form-field">
             <label>Cabinet (all locations)</label>
-            <input className="text-input" value={cabinets.Tampa}
-              onChange={(e) => { const v = e.target.value; setCabinets({ Tampa: v, Palmetto: v, "St. Pete": v, Largo: v }); }}
+            <input className="text-input" value={cabinets[locations[0]] || ""}
+              onChange={(e) => setAllCabinets(e.target.value)}
               placeholder="e.g. 3" />
           </div>
         </div>
       ) : (
-        <CabinetInputs cabinets={cabinets} onChange={setCabinets} />
+        <CabinetInputs cabinets={cabinets} onChange={setCabinets} locations={locations} />
       )}
+
+      <div className="form-row">
+        <div className="form-field">
+          <label>Category (optional)</label>
+          <select className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">— None —</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="form-field">
+          <label>Est. unit cost (optional)</label>
+          <input className="text-input" type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="e.g. 12.50" />
+        </div>
+      </div>
 
       <div className="form-row">
         <div className="form-field">
@@ -1133,20 +1551,17 @@ function AddItemForm({ onAdd }) {
 
       {type === "Quantity" && (
         <div className="form-row">
-          <div className="form-field-note">Starting count on hand right now (optional \u2014 leave blank to check in later)</div>
+          <div className="form-field-note">Starting count on hand right now (optional — leave blank to check in later)</div>
         </div>
       )}
       {type === "Quantity" && (
         <div className="form-row">
-          {LOCATIONS.map((loc) => {
-            const field = LOC_FIELD[loc];
-            return (
-              <div className="form-field" key={loc}>
-                <label>{loc} qty</label>
-                <input className="text-input" type="number" value={qty[field]} onChange={(e) => setQty({ ...qty, [field]: e.target.value })} />
-              </div>
-            );
-          })}
+          {locations.map((loc) => (
+            <div className="form-field" key={loc}>
+              <label>{loc} qty</label>
+              <input className="text-input" type="number" value={qty[loc] ?? ""} onChange={(e) => setQty({ ...qty, [loc]: e.target.value })} />
+            </div>
+          ))}
         </div>
       )}
 
@@ -1155,7 +1570,8 @@ function AddItemForm({ onAdd }) {
           onClick={() => {
             onAdd(
               { name: desc ? name + " - " + desc : name, item: name, desc, cabinets, type,
-                unit, threshold: type === "Quantity" ? Number(threshold) || 0 : null, thresholdDesc: "" },
+                unit, threshold: type === "Quantity" ? Number(threshold) || 0 : null, thresholdDesc: "",
+                categoryId, estimatedUnitCost: cost },
               type === "Quantity" ? qty : null
             );
             reset(); setOpen(false);
@@ -1168,11 +1584,12 @@ function AddItemForm({ onAdd }) {
   );
 }
 
-function ManageItems({ items, onAdd, onUpdate, onDelete }) {
+function ManageItems({ items, onAdd, onUpdate, onDelete, locations, categories }) {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+  const catById = useMemo(() => Object.fromEntries((categories || []).map((c) => [c.id, c.name])), [categories]);
   const filtered = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -1183,7 +1600,7 @@ function ManageItems({ items, onAdd, onUpdate, onDelete }) {
       </div>
 
       <div className="panel">
-        <AddItemForm onAdd={onAdd} />
+        <AddItemForm onAdd={onAdd} locations={locations} categories={categories} />
       </div>
 
       <div className="panel">
@@ -1191,21 +1608,23 @@ function ManageItems({ items, onAdd, onUpdate, onDelete }) {
           <h2>All items</h2>
           <span className="pill">{items.length} total</span>
         </div>
-        <input className="text-input" placeholder="Search items\u2026" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 12 }} />
+        <input className="text-input" placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 12 }} />
         <div className="manage-list">
           {filtered.map((item) => (
             <div className="manage-row" key={item.id}>
               {editingId === item.id ? (
-                <EditItemInline item={item} onSave={(patch) => { onUpdate(item.id, patch); setEditingId(null); }} onCancel={() => setEditingId(null)} />
+                <EditItemInline item={item} onSave={(patch) => { onUpdate(item.id, patch); setEditingId(null); }} onCancel={() => setEditingId(null)} locations={locations} categories={categories} />
               ) : (
                 <>
                   <div className="manage-main">
                     <div className="flag-name">{item.name}</div>
                     <div className="flag-meta">
-                      {LOCATIONS.map((loc) => loc + " Cab " + (item.cabinets[loc] || "\u2014")).join("  \u00b7  ")}
+                      {locations.map((loc) => loc + " Cab " + (item.cabinets[loc] || "—")).join("  ·  ")}
                     </div>
                     <div className="flag-meta muted">
-                      {item.type === "Quantity" ? "Exact qty \u00b7 threshold " + item.threshold : "Good / Low"}
+                      {item.categoryId && catById[item.categoryId] ? catById[item.categoryId] + " · " : ""}
+                      {item.type === "Quantity" ? "Exact qty · threshold " + item.threshold : "Good / Low"}
+                      {item.estimatedUnitCost !== "" && item.estimatedUnitCost != null ? " · ~$" + item.estimatedUnitCost + "/unit" : ""}
                     </div>
                   </div>
                   <div className="manage-actions">
@@ -1230,15 +1649,30 @@ function ManageItems({ items, onAdd, onUpdate, onDelete }) {
   );
 }
 
-function EditItemInline({ item, onSave, onCancel }) {
+function EditItemInline({ item, onSave, onCancel, locations, categories }) {
   const [type, setType] = useState(item.type);
   const [threshold, setThreshold] = useState(item.threshold ?? "");
   const [unit, setUnit] = useState(item.unit || "");
+  const [categoryId, setCategoryId] = useState(item.categoryId || "");
+  const [cost, setCost] = useState(item.estimatedUnitCost ?? "");
   const [cabinets, setCabinets] = useState({ ...item.cabinets });
 
   return (
     <div className="edit-inline">
-      <CabinetInputs cabinets={cabinets} onChange={setCabinets} />
+      <CabinetInputs cabinets={cabinets} onChange={setCabinets} locations={locations} />
+      <div className="form-row">
+        <div className="form-field">
+          <label>Category</label>
+          <select className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">— None —</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="form-field">
+          <label>Est. unit cost</label>
+          <input className="text-input" type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="e.g. 12.50" />
+        </div>
+      </div>
       <div className="form-row">
         <div className="form-field">
           <label>Tracking type</label>
@@ -1261,7 +1695,7 @@ function EditItemInline({ item, onSave, onCancel }) {
         )}
       </div>
       <div className="form-row">
-        <button className="btn btn-primary btn-tiny" onClick={() => onSave({ type, cabinets, threshold: type === "Quantity" ? Number(threshold) || 0 : null, unit })}>Save</button>
+        <button className="btn btn-primary btn-tiny" onClick={() => onSave({ type, cabinets, threshold: type === "Quantity" ? Number(threshold) || 0 : null, unit, categoryId, estimatedUnitCost: cost })}>Save</button>
         <button className="btn btn-secondary btn-tiny" onClick={onCancel}>Cancel</button>
       </div>
     </div>
@@ -1269,176 +1703,329 @@ function EditItemInline({ item, onSave, onCancel }) {
 }
 
 /* ============================== APP SHELL ============================== */
-export default function App() {
-  const [items, saveItems, itemsLoaded] = useSharedState("items", null);
-  const [checks, saveChecks, checksLoaded] = useSharedState("checks", {});
-  const [shipments, saveShipments, shipLoaded] = useSharedState("shipments", []);
-  const [transfers, saveTransfers, transfersLoaded] = useSharedState("transfers", []);
-  const [queue, saveQueue, queueLoaded] = useSharedState("queue", []);
-  const [lists, saveLists, listsLoaded] = useSharedState("lists", { staff: SEED_STAFF, distributors: SEED_DISTRIBUTORS });
+export function MainApp({ profile, practice, onSignOut }) {
+  // Items + distributors are real Supabase tables (step 3a). The remaining
+  // entities (checks/shipments/transfers/queue, plus the staff pick-list) are
+  // still on the localStorage blob and get migrated in later slices (3b–3e).
 
   const [view, setView] = useState("dashboard");
-  const [activeLocation, setActiveLocation] = useState("Tampa");
+  const [activeLocation, setActiveLocation] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const ready = itemsLoaded && checksLoaded && shipLoaded && transfersLoaded && queueLoaded && listsLoaded;
-
-  useEffect(() => {
-    if (itemsLoaded && items === null) {
-      saveItems(SEED_ITEMS);
+  // Locations come from the practice's own Supabase table (step 2) — the first
+  // real table wiring. `locations` holds the full rows; `locationNames` is the
+  // array of names the rest of the (still blob-based) app iterates over.
+  const [locations, setLocations] = useState(null);
+  const [locationsError, setLocationsError] = useState("");
+  const reloadLocations = useCallback(async () => {
+    if (!practice?.id) return;
+    try {
+      const rows = await fetchLocations(practice.id);
+      setLocations(rows);
+    } catch (e) {
+      setLocationsError(e.message || "Could not load locations.");
+      setLocations([]);
     }
-  }, [itemsLoaded, items, saveItems]);
+  }, [practice?.id]);
 
-  const itemList = items || SEED_ITEMS;
+  useEffect(() => { reloadLocations(); }, [reloadLocations]);
 
-  const handleSaveCheck = useCallback((item, location, patch) => {
+  const locationNames = useMemo(() => (locations || []).map((l) => l.name), [locations]);
+
+  // Keep activeLocation valid as locations load/change.
+  useEffect(() => {
+    if (!locationNames.length) return;
+    if (!activeLocation || !locationNames.includes(activeLocation)) {
+      setActiveLocation(locationNames[0]);
+    }
+  }, [locationNames, activeLocation]);
+
+  // Items load from Supabase (with per-location cabinets). Needs `locations`
+  // first, to translate item_cabinets' location_id back to a location name.
+  const [items, setItems] = useState(null);
+  const reloadItems = useCallback(async () => {
+    if (!practice?.id || locations === null) return;
+    try {
+      setItems(await fetchItems(practice.id, locations));
+    } catch (e) {
+      console.error("Failed to load items:", e.message);
+      setItems([]);
+    }
+  }, [practice?.id, locations]);
+  useEffect(() => { reloadItems(); }, [reloadItems]);
+  const itemList = items || [];
+
+  // Distributors pick-list from Supabase. Components still consume plain names.
+  const [distributorRows, setDistributorRows] = useState(null);
+  const reloadDistributors = useCallback(async () => {
+    if (!practice?.id) return;
+    try {
+      setDistributorRows(await fetchDistributors(practice.id));
+    } catch (e) {
+      console.error("Failed to load distributors:", e.message);
+      setDistributorRows([]);
+    }
+  }, [practice?.id]);
+  useEffect(() => { reloadDistributors(); }, [reloadDistributors]);
+  const distributors = useMemo(() => (distributorRows || []).map((d) => d.name), [distributorRows]);
+
+  // Item categories (0008) — practice-scoped, flat list.
+  const [categoryRows, setCategoryRows] = useState(null);
+  const reloadCategories = useCallback(async () => {
+    if (!practice?.id) return;
+    try { setCategoryRows(await fetchCategories(practice.id)); }
+    catch (e) { console.error("Failed to load categories:", e.message); setCategoryRows([]); }
+  }, [practice?.id]);
+  useEffect(() => { reloadCategories(); }, [reloadCategories]);
+  const categories = useMemo(() => categoryRows || [], [categoryRows]);
+
+  // Shipments (+ their per-location split) and transfers from Supabase. Both
+  // reloads depend on `locations` so a rename re-translates them (per 0003).
+  const [shipmentsData, setShipmentsData] = useState(null);
+  const reloadShipments = useCallback(async () => {
+    if (!practice?.id || locations === null) return;
+    try { setShipmentsData(await fetchShipments(practice.id, locations)); }
+    catch (e) { console.error("Failed to load shipments:", e.message); setShipmentsData([]); }
+  }, [practice?.id, locations]);
+  useEffect(() => { reloadShipments(); }, [reloadShipments]);
+  const shipments = shipmentsData || [];
+
+  const [transfersData, setTransfersData] = useState(null);
+  const reloadTransfers = useCallback(async () => {
+    if (!practice?.id || locations === null) return;
+    try { setTransfersData(await fetchTransfers(practice.id, locations)); }
+    catch (e) { console.error("Failed to load transfers:", e.message); setTransfersData([]); }
+  }, [practice?.id, locations]);
+  useEffect(() => { reloadTransfers(); }, [reloadTransfers]);
+  const transfers = transfersData || [];
+
+  // Ordering queue (queue_entries + queue_locations) from Supabase.
+  const [queueData, setQueueData] = useState(null);
+  const reloadQueue = useCallback(async () => {
+    if (!practice?.id || locations === null) return;
+    try { setQueueData(await fetchQueue(practice.id, locations)); }
+    catch (e) { console.error("Failed to load queue:", e.message); setQueueData([]); }
+  }, [practice?.id, locations]);
+  useEffect(() => { reloadQueue(); }, [reloadQueue]);
+  const queue = queueData || [];
+
+  // Check-ins (one row per item+location) from Supabase. The displayed date is
+  // derived in the practice's timezone, so it needs practice.timezone as well.
+  const [checksData, setChecksData] = useState(null);
+  const reloadChecks = useCallback(async () => {
+    if (!practice?.id || locations === null) return;
+    try { setChecksData(await fetchChecks(practice.id, locations, practice?.timezone)); }
+    catch (e) { console.error("Failed to load check-ins:", e.message); setChecksData({}); }
+  }, [practice?.id, practice?.timezone, locations]);
+  useEffect(() => { reloadChecks(); }, [reloadChecks]);
+  const checks = checksData || {};
+
+  // The practice's own "today" (timezone-aware), fetched once and reused for
+  // app-written dates like a queue entry's flagged date.
+  const [today, setToday] = useState(null);
+  useEffect(() => {
+    let active = true;
+    if (practice?.id) practiceToday(practice.id).then((d) => { if (active) setToday(d); });
+    return () => { active = false; };
+  }, [practice?.id]);
+
+  const ready = locations !== null && items !== null && distributorRows !== null
+    && shipmentsData !== null && transfersData !== null && categoryRows !== null
+    && queueData !== null && checksData !== null;
+
+  // Save a check-in to Supabase. counted_qty vs status is chosen by tracking type.
+  // If it lands the item at "Need to Order", flag the ordering queue (Supabase).
+  const handleSaveCheck = useCallback(async (item, location, patch) => {
     const key = keyFor(location, item.id);
-    const nextCheck = { ...(checks[key] || {}), ...patch, date: todayISO() };
-    const nextChecks = { ...checks, [key]: nextCheck };
-    saveChecks(nextChecks);
+    const nextCheck = { ...(checks[key] || {}), ...patch };
+    const isQty = item.type === "Quantity";
+    try {
+      await saveCheck(practice.id, item.id, location, {
+        counted_qty: isQty ? (nextCheck.count === "" || nextCheck.count == null ? null : Number(nextCheck.count)) : null,
+        status: isQty ? null : (nextCheck.status || null),
+        notes: nextCheck.notes || null,
+      }, locations, { performedBy: profile?.id });
+      await reloadChecks();
+    } catch (e) {
+      console.error("Failed to save check-in:", e.message);
+      return;
+    }
 
     const status = effectiveStatus(item, nextCheck);
     if (status === "Need to Order") {
       const detail = {
-        qty: item.type === "Quantity" ? nextCheck.count : null,
-        reason: item.type === "Quantity"
+        qty: isQty ? nextCheck.count : null,
+        reason: isQty
           ? "Counted " + nextCheck.count + " (threshold " + item.threshold + ")"
           : "Marked Need to Order on location check",
-        staff: nextCheck.staff || "",
       };
-      saveQueue(upsertQueueEntry(queue, item.id, location, detail));
+      try {
+        await flagQueueLocation(practice.id, item.id, location, detail, locations, { performedBy: profile?.id, flaggedDate: today });
+        await reloadQueue();
+      } catch (e) {
+        console.error("Failed to flag item for the ordering queue:", e.message);
+      }
     }
-  }, [checks, queue, saveChecks, saveQueue]);
+  }, [checks, practice?.id, locations, profile?.id, today, reloadChecks, reloadQueue]);
 
-  const handleAddShipment = useCallback((shipment) => {
-    saveShipments([...shipments, shipment]);
-  }, [shipments, saveShipments]);
+  // Log a new order: atomic shipment + split via the create_shipment RPC (0007).
+  const handleAddShipment = useCallback(async (shipment) => {
+    try {
+      await createShipment(shipment.itemId, shipment, locations);
+      await reloadShipments();
+    } catch (e) {
+      console.error("Failed to log shipment:", e.message);
+    }
+  }, [locations, reloadShipments]);
 
-  // Updating a shipment can also spin off internal transfers: once status becomes
-  // "Received", the ship-to location gets its own portion credited immediately, and
-  // every OTHER location with a nonzero share gets a pending transfer record instead
-  // of being credited right away - it isn't really there until someone moves it and
-  // confirms it arrived.
-  const handleUpdateShipment = useCallback((id, patch) => {
-    let createdTransfers = [];
-    const nextShipments = shipments.map((s) => {
-      if (s.id !== id) return s;
-      const next = { ...s, ...patch };
-      if (next.status === "Received" && !next.transfersCreated) {
-        const shipTo = next.shipTo || "";
-        LOCATIONS.forEach((loc) => {
-          const field = LOC_FIELD[loc];
-          const qty = Number(next[field]) || 0;
-          if (qty > 0 && shipTo && loc !== shipTo) {
-            createdTransfers.push({
-              id: uid("TR"), shipmentId: next.id, itemId: next.itemId,
-              fromLocation: shipTo, toLocation: loc, qty,
-              status: "Pending", dateCreated: todayISO(), dateReceived: "", receivedBy: "",
-            });
+  // A shipment update is one of two things: editing its per-location split (a
+  // plain multi-row write) or marking it Received. "Received" goes through the
+  // receive_shipment RPC (0007), which atomically flips the status AND creates
+  // the pending transfers for every non-ship-to location — so a received
+  // shipment can never silently skip its transfers.
+  const handleUpdateShipment = useCallback(async (id, patch) => {
+    try {
+      if (patch.status === "Received") {
+        await receiveShipment(id, null);          // RPC computes the timezone-correct date
+        await reloadShipments();
+        await reloadTransfers();
+      } else if ("split" in patch) {
+        await updateShipmentSplit(id, patch.split, locations);
+        await reloadShipments();
+      }
+    } catch (e) {
+      console.error("Failed to update shipment:", e.message);
+    }
+  }, [locations, reloadShipments, reloadTransfers]);
+
+  // Confirm a transfer arrived. Single-table update + best-effort audit; sets
+  // performed_by to the current user (no staff dropdown).
+  const handleUpdateTransfer = useCallback(async (id) => {
+    try {
+      await confirmTransfer(id, { performedBy: profile?.id, practiceId: practice?.id });
+      await reloadTransfers();
+    } catch (e) {
+      console.error("Failed to confirm transfer:", e.message);
+    }
+  }, [profile?.id, practice?.id, reloadTransfers]);
+
+  // Update a queue entry. Field edits and location-set changes are direct writes;
+  // the moment it becomes ready-to-order ("Ordered" + distributor + qty), the
+  // shipment is created via the ATOMIC create_shipment_from_queue RPC (0007),
+  // which reads the entry + its locations, even-splits, creates the shipment +
+  // split, and flags the entry — all in one transaction.
+  const handleUpdateQueue = useCallback(async (id, patch) => {
+    const existing = queue.find((q) => q.id === id);
+    if (!existing) return;
+    try {
+      if ("locations" in patch) {
+        await setQueueLocations(id, patch.locations, patch.details, locations);
+      } else {
+        await updateQueueFields(id, patch);
+      }
+      const next = { ...existing, ...patch };
+      const readyToOrder = next.distributor && Number(next.qtyToOrder) > 0;
+      if (next.status === "Ordered" && readyToOrder && !next.shipmentCreated) {
+        await orderQueueEntry(id);        // atomic shipment + split + queue flag
+        await reloadShipments();
+      }
+      await reloadQueue();
+    } catch (e) {
+      console.error("Failed to update queue entry:", e.message);
+    }
+  }, [queue, locations, reloadQueue, reloadShipments]);
+
+  const handleManualQueueAdd = useCallback(async (itemId, locationsToAdd) => {
+    try {
+      for (const loc of locationsToAdd) {
+        await flagQueueLocation(practice.id, itemId, loc, { qty: null, reason: "Manually added to queue" }, locations,
+          { performedBy: profile?.id, flaggedDate: today });
+      }
+      await reloadQueue();
+      return true;
+    } catch (e) {
+      console.error("Failed to add to queue:", e.message);
+      return false;
+    }
+  }, [practice?.id, locations, profile?.id, today, reloadQueue]);
+
+  const handleAddItem = useCallback(async (itemData, initialQty) => {
+    try {
+      const newId = await createItem(practice.id, itemData, locations);
+      await reloadItems();
+
+      // Initial on-hand counts are check-ins — write them to Supabase as checks.
+      if (initialQty) {
+        for (const loc of locationNames) {
+          if (initialQty[loc] !== "" && initialQty[loc] !== undefined) {
+            await saveCheck(practice.id, newId, loc, { counted_qty: Number(initialQty[loc]), status: null, notes: null },
+              locations, { performedBy: profile?.id });
           }
-        });
-        next.transfersCreated = true;
-      }
-      return next;
-    });
-    saveShipments(nextShipments);
-    if (createdTransfers.length > 0) {
-      saveTransfers([...transfers, ...createdTransfers]);
-    }
-  }, [shipments, transfers, saveShipments, saveTransfers]);
-
-  const handleUpdateTransfer = useCallback((id, patch) => {
-    saveTransfers(transfers.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  }, [transfers, saveTransfers]);
-
-  // Updating a queue entry can also auto-create a shipment: the moment status becomes
-  // "Ordered" and a distributor + quantity are present, split the quantity across the
-  // entry's selected locations (weighted Palmetto > Tampa > St. Pete > Largo) and log
-  // it in Shipments - once per queue entry.
-  const handleUpdateQueue = useCallback((id, patch) => {
-    let newShipment = null;
-    const nextQueue = queue.map((q) => {
-      if (q.id !== id) return q;
-      const next = { ...q, ...patch };
-      const ready = next.distributor && Number(next.qtyToOrder) > 0;
-      if (next.status === "Ordered" && ready && !next.shipmentCreated) {
-        const total = Number(next.qtyToOrder);
-        const locs = next.locations && next.locations.length ? next.locations : LOCATIONS;
-        const splitByLoc = weightedSplit(total, locs);
-        newShipment = {
-          id: uid("SHP"), itemId: next.itemId, distributor: next.distributor, po: "", shipTo: "",
-          dateOrdered: todayISO(), status: "Ordered", total,
-          tampa: splitByLoc["Tampa"] || 0, palmetto: splitByLoc["Palmetto"] || 0,
-          stpete: splitByLoc["St. Pete"] || 0, largo: splitByLoc["Largo"] || 0,
-          dateReceived: "", receivedBy: "", transfersCreated: false,
-          notes: "Auto-created from ordering queue (" + locs.join(", ") + ")",
-        };
-        next.shipmentCreated = true;
-        next.dateOrdered = next.dateOrdered || todayISO();
-      }
-      return next;
-    });
-    saveQueue(nextQueue);
-    if (newShipment) {
-      saveShipments([...shipments, newShipment]);
-    }
-  }, [queue, shipments, saveQueue, saveShipments]);
-
-  const handleManualQueueAdd = useCallback((itemId, locationsToAdd) => {
-    let nextQueue = queue;
-    locationsToAdd.forEach((loc) => {
-      nextQueue = upsertQueueEntry(nextQueue, itemId, loc, { qty: null, reason: "Manually added to queue", staff: "" });
-    });
-    saveQueue(nextQueue);
-    return true;
-  }, [queue, saveQueue]);
-
-  const handleAddItem = useCallback((itemData, initialQty) => {
-    const newItem = { id: uid("SUP-C"), ...itemData };
-    const nextItems = [...itemList, newItem];
-    saveItems(nextItems);
-
-    if (initialQty) {
-      const nextChecks = { ...checks };
-      LOCATIONS.forEach((loc) => {
-        const field = LOC_FIELD[loc];
-        if (initialQty[field] !== "" && initialQty[field] !== undefined) {
-          nextChecks[keyFor(loc, newItem.id)] = { count: Number(initialQty[field]), date: todayISO(), staff: "", notes: "" };
         }
-      });
-      saveChecks(nextChecks);
+        await reloadChecks();
+      }
+    } catch (e) {
+      console.error("Failed to add item:", e.message);
     }
-  }, [itemList, checks, saveItems, saveChecks]);
+  }, [practice?.id, locations, reloadItems, locationNames, profile?.id, reloadChecks]);
 
-  const handleUpdateItem = useCallback((id, patch) => {
-    saveItems(itemList.map((i) => (i.id === id ? { ...i, ...patch } : i)));
-  }, [itemList, saveItems]);
+  const handleUpdateItem = useCallback(async (id, patch) => {
+    try {
+      await updateItem(id, patch, locations);
+      await reloadItems();
+    } catch (e) {
+      console.error("Failed to update item:", e.message);
+    }
+  }, [locations, reloadItems]);
 
-  const handleDeleteItem = useCallback((id) => {
-    saveItems(itemList.filter((i) => i.id !== id));
-  }, [itemList, saveItems]);
+  const handleDeleteItem = useCallback(async (id) => {
+    try {
+      await deleteItem(id);
+      await reloadItems();
+    } catch (e) {
+      console.error("Failed to delete item:", e.message);
+    }
+  }, [reloadItems]);
 
-  const handleAddStaff = useCallback((name) => {
-    if (!name || lists.staff.includes(name)) return;
-    saveLists({ ...lists, staff: [...lists.staff, name] });
-  }, [lists, saveLists]);
+  const handleAddDistributor = useCallback(async (fields) => {
+    const name = (fields?.name || "").trim();
+    if (!name) return { error: "Enter a distributor name." };
+    if (distributors.some((d) => d.toLowerCase() === name.toLowerCase())) {
+      return { error: `"${name}" is already in the directory.` };
+    }
+    try {
+      await createDistributor(practice.id, fields);
+      await reloadDistributors();
+      return {};
+    } catch (e) {
+      console.error("Failed to add distributor:", e.message);
+      return { error: e.message || "Could not add distributor." };
+    }
+  }, [distributors, practice?.id, reloadDistributors]);
 
-  const handleRemoveStaff = useCallback((name) => {
-    saveLists({ ...lists, staff: lists.staff.filter((s) => s !== name) });
-  }, [lists, saveLists]);
+  const handleUpdateDistributor = useCallback(async (id, fields) => {
+    try {
+      await updateDistributor(id, fields);
+      await reloadDistributors();
+      return {};
+    } catch (e) {
+      console.error("Failed to update distributor:", e.message);
+      return { error: e.message || "Could not update distributor." };
+    }
+  }, [reloadDistributors]);
 
-  const handleAddDistributor = useCallback((name) => {
-    if (!name || lists.distributors.includes(name)) return;
-    saveLists({ ...lists, distributors: [...lists.distributors, name] });
-  }, [lists, saveLists]);
-
-  const handleRemoveDistributor = useCallback((name) => {
-    saveLists({ ...lists, distributors: lists.distributors.filter((d) => d !== name) });
-  }, [lists, saveLists]);
+  const handleRemoveDistributor = useCallback(async (id) => {
+    try {
+      await deleteDistributor(id);
+      await reloadDistributors();
+    } catch (e) {
+      console.error("Failed to remove distributor:", e.message);
+    }
+  }, [reloadDistributors]);
 
   const locCounts = useMemo(() => {
     const c = {};
-    LOCATIONS.forEach((loc) => {
+    locationNames.forEach((loc) => {
       let n = 0;
       itemList.forEach((item) => {
         if (item.type === "Quantity") {
@@ -1452,7 +2039,116 @@ export default function App() {
       c[loc] = n;
     });
     return c;
-  }, [itemList, checks, shipments, transfers]);
+  }, [itemList, checks, shipments, transfers, locationNames]);
+
+  // ---- Location CRUD (writes to Supabase, then reloads) ----------------------
+  // Uniqueness is enforced in the DB (migration 0005) and pre-checked here so the
+  // user sees a friendly message instead of a raw constraint error.
+  const handleAddLocation = useCallback(async (name) => {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return { error: "Enter a location name." };
+    if (nameTaken(locations || [], trimmed)) return { error: `"${trimmed}" already exists.` };
+    try {
+      await createLocation(practice.id, trimmed, (locations || []).length);
+      await reloadLocations();
+      return {};
+    } catch (e) {
+      return { error: /duplicate|unique/i.test(e.message || "") ? `"${trimmed}" already exists.` : (e.message || "Could not add location.") };
+    }
+  }, [locations, practice?.id, reloadLocations]);
+
+  const handleRenameLocation = useCallback(async (id, name) => {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return { error: "Enter a location name." };
+    if (nameTaken(locations || [], trimmed, id)) return { error: `"${trimmed}" already exists.` };
+    try {
+      await renameLocation(id, trimmed);
+      await reloadLocations();
+      return {};
+    } catch (e) {
+      return { error: /duplicate|unique/i.test(e.message || "") ? `"${trimmed}" already exists.` : (e.message || "Could not rename location.") };
+    }
+  }, [locations, reloadLocations]);
+
+  const handleDeleteLocation = useCallback(async (id) => {
+    if ((locations || []).length <= 1) return { error: "A practice must keep at least one location." };
+    try {
+      await deleteLocation(id);
+      await reloadLocations();
+      return {};
+    } catch (e) {
+      return { error: e.message || "Could not delete location." };
+    }
+  }, [locations, reloadLocations]);
+
+  const handleReorderLocations = useCallback(async (orderedIds) => {
+    // Optimistic: reflect the new order immediately, then persist.
+    setLocations((prev) => {
+      if (!prev) return prev;
+      const byId = Object.fromEntries(prev.map((l) => [l.id, l]));
+      return orderedIds.map((id) => byId[id]).filter(Boolean);
+    });
+    try {
+      await saveLocationOrder(orderedIds);
+      await reloadLocations();
+    } catch {
+      await reloadLocations();
+    }
+  }, [reloadLocations]);
+
+  // ---- Category CRUD (same shape as locations) --------------------------------
+  const handleAddCategory = useCallback(async (name) => {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return { error: "Enter a category name." };
+    if (categoryNameTaken(categoryRows || [], trimmed)) return { error: `"${trimmed}" already exists.` };
+    try {
+      await createCategory(practice.id, trimmed, (categoryRows || []).length);
+      await reloadCategories();
+      return {};
+    } catch (e) {
+      return { error: /duplicate|unique/i.test(e.message || "") ? `"${trimmed}" already exists.` : (e.message || "Could not add category.") };
+    }
+  }, [categoryRows, practice?.id, reloadCategories]);
+
+  const handleRenameCategory = useCallback(async (id, name) => {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return { error: "Enter a category name." };
+    if (categoryNameTaken(categoryRows || [], trimmed, id)) return { error: `"${trimmed}" already exists.` };
+    try {
+      await renameCategory(id, trimmed);
+      await reloadCategories();
+      // an item's category name is denormalized in the item list via catById,
+      // which reads from `categories`, so reloading categories is enough.
+      return {};
+    } catch (e) {
+      return { error: /duplicate|unique/i.test(e.message || "") ? `"${trimmed}" already exists.` : (e.message || "Could not rename category.") };
+    }
+  }, [categoryRows, reloadCategories]);
+
+  const handleDeleteCategory = useCallback(async (id) => {
+    try {
+      await deleteCategory(id);
+      await reloadCategories();
+      await reloadItems();          // items in this category are now uncategorized (category_id -> null)
+      return {};
+    } catch (e) {
+      return { error: e.message || "Could not delete category." };
+    }
+  }, [reloadCategories, reloadItems]);
+
+  const handleReorderCategories = useCallback(async (orderedIds) => {
+    setCategoryRows((prev) => {
+      if (!prev) return prev;
+      const byId = Object.fromEntries(prev.map((c) => [c.id, c]));
+      return orderedIds.map((id) => byId[id]).filter(Boolean);
+    });
+    try {
+      await saveCategoryOrder(orderedIds);
+      await reloadCategories();
+    } catch {
+      await reloadCategories();
+    }
+  }, [reloadCategories]);
 
   const totalFlagged = Object.values(locCounts).reduce((a, b) => a + b, 0);
   const pendingQueue = queue.filter((q) => q.status === "Pending").length;
@@ -1464,58 +2160,77 @@ export default function App() {
         <style>{STYLES}</style>
         <img src={LOGO_SRC} alt="" className="loading-logo" />
         <div className="spinner" />
-        <div>Loading supply data\u2026</div>
+        <div>Loading supply data…</div>
       </div>
     );
+  }
+
+  // Safety net: a practice should never have zero locations (0005 seeds a default
+  // and backfills existing ones), but if it somehow does, guide setup instead of
+  // rendering screens that all iterate over an empty location list.
+  if (locations.length === 0) {
+    return <LocationSetup practiceName={practice?.name} onAdd={handleAddLocation} onSignOut={onSignOut} error={locationsError} />;
   }
 
   return (
     <div className="app-root">
       <style>{STYLES}</style>
-      <Header onMenuClick={() => setDrawerOpen(true)} />
+      {practiceBrandCss(practice) && <style>{practiceBrandCss(practice)}</style>}
+      <Header onMenuClick={() => setDrawerOpen(true)} practiceName={practice?.name} practiceLogo={practice?.logo_url}
+        profile={profile} practice={practice} onSignOut={onSignOut} />
 
       <div className="app-shell">
         <SideDrawer open={drawerOpen} view={view} setView={setView} onClose={() => setDrawerOpen(false)} pendingTransfers={pendingTransfers} />
 
         <main className="main-panel">
           {view === "dashboard" && (
-            <Dashboard items={itemList} checks={checks} shipments={shipments} transfers={transfers} queue={queue} setView={setView} setActiveLocation={setActiveLocation} />
+            <Dashboard items={itemList} checks={checks} shipments={shipments} transfers={transfers} queue={queue} setView={setView} setActiveLocation={setActiveLocation} locations={locationNames} practiceName={practice?.name} />
           )}
           {view === "checkin" && (
             <CheckIn items={itemList} checks={checks} activeLocation={activeLocation} setActiveLocation={setActiveLocation}
-              staffList={lists.staff} onSaveCheck={handleSaveCheck} locCounts={locCounts} />
+              onSaveCheck={handleSaveCheck} locCounts={locCounts} locations={locationNames} />
           )}
           {view === "shipments" && (
-            <ShipmentsView items={itemList} shipments={shipments} distributors={lists.distributors} staffList={lists.staff}
-              onAdd={handleAddShipment} onUpdate={handleUpdateShipment} />
+            <ShipmentsView items={itemList} shipments={shipments} distributors={distributors}
+              onAdd={handleAddShipment} onUpdate={handleUpdateShipment} locations={locationNames} />
           )}
           {view === "queue" && (
-            <QueueView items={itemList} queue={queue} distributors={lists.distributors} staffList={lists.staff}
-              onUpdate={handleUpdateQueue} onManualAdd={handleManualQueueAdd} />
+            <QueueView items={itemList} queue={queue} distributors={distributors}
+              onUpdate={handleUpdateQueue} onManualAdd={handleManualQueueAdd} locations={locationNames} />
           )}
           {view === "inventory" && (
-            <InventoryView items={itemList} checks={checks} shipments={shipments} transfers={transfers} />
+            <InventoryView items={itemList} checks={checks} shipments={shipments} transfers={transfers} locations={locationNames} />
           )}
           {view === "items" && (
-            <ManageItems items={itemList} onAdd={handleAddItem} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} />
+            <ManageItems items={itemList} onAdd={handleAddItem} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} locations={locationNames} categories={categories} />
           )}
-          {view === "lists" && (
-            <StaffDistributors staff={lists.staff} distributors={lists.distributors}
-              onAddStaff={handleAddStaff} onRemoveStaff={handleRemoveStaff}
-              onAddDistributor={handleAddDistributor} onRemoveDistributor={handleRemoveDistributor} />
+          {view === "locations" && (
+            <LocationsManager locations={locations} onAdd={handleAddLocation} onRename={handleRenameLocation}
+              onDelete={handleDeleteLocation} onReorder={handleReorderLocations} />
+          )}
+          {view === "categories" && (
+            <CategoriesManager categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory}
+              onDelete={handleDeleteCategory} onReorder={handleReorderCategories} />
+          )}
+          {view === "distributors" && (
+            <DistributorsScreen distributorRows={distributorRows || []}
+              onAdd={handleAddDistributor} onUpdate={handleUpdateDistributor} onRemove={handleRemoveDistributor} />
           )}
           {view === "transfers" && (
-            <TransfersView items={itemList} transfers={transfers} staffList={lists.staff} onUpdate={handleUpdateTransfer} />
+            <TransfersView items={itemList} transfers={transfers} onUpdate={handleUpdateTransfer} />
           )}
         </main>
       </div>
 
-      <nav className="bottom-nav">
-        <NavItem icon="\u2302" label="Dashboard" active={view === "dashboard"} onClick={() => setView("dashboard")} count={totalFlagged} />
-        <NavItem icon="\u2713" label="Check-in" active={view === "checkin"} onClick={() => setView("checkin")} />
-        <NavItem icon="\u25a2" label="Shipments" active={view === "shipments"} onClick={() => setView("shipments")} />
-        <NavItem icon="\u2691" label="Queue" active={view === "queue"} onClick={() => setView("queue")} count={pendingQueue} />
-      </nav>
+      <div className="bottom-bar">
+        <nav className="bottom-nav">
+          <NavItem icon="⌂" label="Dashboard" active={view === "dashboard"} onClick={() => setView("dashboard")} count={totalFlagged} />
+          <NavItem icon="✓" label="Check-in" active={view === "checkin"} onClick={() => setView("checkin")} />
+          <NavItem icon="▢" label="Shipments" active={view === "shipments"} onClick={() => setView("shipments")} />
+          <NavItem icon="⚑" label="Queue" active={view === "queue"} onClick={() => setView("queue")} count={pendingQueue} />
+        </nav>
+        <div className="powered-strip">Powered by <span>Baybridge</span></div>
+      </div>
     </div>
   );
 }
@@ -1548,7 +2263,7 @@ const STYLES = `
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 72px;
+  padding-bottom: 90px;
 }
 
 .app-loading {
@@ -1671,11 +2386,18 @@ const STYLES = `
 .inv-row { border-bottom: 1px solid var(--line); }
 .inv-name { font-weight: 600; font-size: 12px; }
 
-.bottom-nav {
+/* Fixed bottom bar = nav row + a thin "Powered by Baybridge" strip. z-index sits
+   ABOVE the drawer (30) so the nav tabs stay reachable while the drawer is open. */
+.bottom-bar {
   position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--line);
-  display: flex; justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-  z-index: 20;
+  z-index: 45; padding-bottom: env(safe-area-inset-bottom);
 }
+.bottom-nav { display: flex; justify-content: space-around; padding: 6px 4px 4px; }
+.powered-strip {
+  text-align: center; font-size: 10px; color: var(--ink-soft); letter-spacing: 0.02em;
+  padding: 3px 0 6px; border-top: 1px solid var(--line); opacity: 0.9;
+}
+.powered-strip span { font-weight: 700; color: #4089A2; }
 .nav-item { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; cursor: pointer; color: var(--ink-soft); font-family: inherit; position: relative; }
 .nav-item-active { color: var(--ink); }
 .nav-icon { font-size: 17px; line-height: 1; }
@@ -1696,6 +2418,27 @@ const STYLES = `
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-name { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; }
 .brand-tag { font-size: 10.5px; font-weight: 700; color: var(--brand-green-dark); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Persistent account control, top-right of the header */
+.header-account { margin-left: auto; position: relative; }
+.account-btn { background: none; border: none; cursor: pointer; padding: 0; display: flex; }
+.account-avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: #fff;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+  display: flex; align-items: center; justify-content: center;
+}
+.account-backdrop { position: fixed; inset: 0; z-index: 40; }
+.account-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 41; min-width: 210px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(20,38,61,0.14); padding: 14px 16px;
+}
+.account-menu-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+.account-menu-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+.account-menu-code { font-size: 11.5px; color: var(--ink-soft); margin-top: 8px; }
+.account-menu-code span { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700; color: var(--ink); letter-spacing: 0.06em; }
+.account-menu-signout { margin-top: 12px; width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.account-menu-signout:hover { background: var(--paper); }
 
 .loading-logo { height: 48px; width: 48px; object-fit: contain; margin-bottom: 4px; }
 
@@ -1723,7 +2466,7 @@ const STYLES = `
 .side-drawer {
   position: fixed; top: 0; left: -260px; bottom: 0; width: 240px; background: var(--card);
   border-right: 1px solid var(--line); z-index: 30; transition: left 0.2s ease; padding-top: 62px;
-  overflow-y: auto;
+  overflow-y: auto; display: flex; flex-direction: column;
 }
 .side-drawer.open { left: 0; box-shadow: 4px 0 20px rgba(27,58,87,0.15); }
 .drawer-backdrop { position: fixed; inset: 0; background: rgba(20,30,40,0.32); z-index: 25; }
@@ -1733,8 +2476,19 @@ const STYLES = `
 .drawer-link-active { color: var(--ink); background: var(--paper); border-right: 3px solid var(--brand-green); }
 .drawer-icon { font-size: 15px; width: 18px; text-align: center; }
 
+.drawer-account { margin-top: auto; border-top: 1px solid var(--line); padding: 16px 18px 18px; }
+.drawer-account-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+.drawer-account-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+.drawer-account-code { font-size: 11.5px; color: var(--ink-soft); margin-top: 6px; }
+.drawer-account-code span { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700; color: var(--ink); letter-spacing: 0.06em; }
+.drawer-signout { margin-top: 12px; width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 9px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.drawer-signout:hover { background: var(--paper); }
+.drawer-powered { margin-top: 12px; text-align: center; font-size: 10.5px; color: var(--ink-soft); letter-spacing: 0.02em; opacity: 0.85; }
+.drawer-powered span { font-weight: 700; color: #4089A2; }
+
 @media (min-width: 900px) {
-  .side-drawer { position: sticky; left: 0 !important; top: 0; height: 100vh; padding-top: 20px; }
+  /* padding-bottom clears the fixed bottom-nav so the account footer isn't hidden behind it */
+  .side-drawer { position: sticky; left: 0 !important; top: 0; height: 100vh; padding-top: 20px; padding-bottom: 84px; }
   .drawer-backdrop { display: none; }
   .hamburger-btn { display: none; }
 }
