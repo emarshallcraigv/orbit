@@ -424,8 +424,8 @@ const AUTH_STYLES = `
   box-shadow: 0 8px 30px rgba(20,38,61,0.10);
 }
 .auth-card-wide { max-width: 440px; }
-.auth-brand { display: flex; align-items: center; margin-bottom: 22px; }
-.auth-logo { height: 40px; width: auto; max-width: 200px; display: block; }
+.auth-brand { display: flex; align-items: center; margin-bottom: 26px; }
+.auth-logo { height: 64px; width: auto; max-width: 300px; display: block; }
 .auth-title { font-size: 21px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
 .auth-subtitle { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 20px; line-height: 1.45; }
 .auth-form { display: flex; flex-direction: column; gap: 14px; }
