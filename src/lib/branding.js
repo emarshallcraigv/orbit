@@ -44,6 +44,16 @@ export async function uploadLogo(practiceId, file, oldPath) {
   return path;
 }
 
+// Download the logo object as a same-origin blob URL. Used for canvas color
+// sampling: reading pixels from a cross-origin signed URL would taint the
+// canvas, but a blob URL fetched through the authenticated client does not.
+// Caller must URL.revokeObjectURL() when done.
+export async function downloadLogoBlobUrl(path) {
+  const { data, error } = await supabase.storage.from(BUCKET).download(path);
+  if (error) throw error;
+  return URL.createObjectURL(data);
+}
+
 // A short-lived signed url for rendering the logo, or null if there's no path
 // or signing is refused (RLS / missing object).
 export async function signedLogoUrl(path, expiresIn = 3600) {

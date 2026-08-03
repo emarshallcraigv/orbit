@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { fetchLocations, createLocation, renameLocation, deleteLocation, saveLocationOrder, nameTaken } from "./lib/locations";
 import { fetchItems, createItem, updateItem, deleteItem, bulkImportItems } from "./lib/items";
 import { parseCsv, buildPayload, templateCsv } from "./lib/importItems";
-import { uploadLogo, signedLogoUrl, removeLogo, saveColors } from "./lib/branding";
+import { uploadLogo, signedLogoUrl, removeLogo, saveColors, downloadLogoBlobUrl } from "./lib/branding";
+import { suggestColorsFromImageUrl } from "./lib/logoColors";
 import { fetchDistributors, createDistributor, updateDistributor, deleteDistributor } from "./lib/distributors";
 import { fetchShipments, createShipment, updateShipmentSplit, receiveShipment } from "./lib/shipments";
 import { fetchTransfers, confirmTransfer } from "./lib/transfers";
@@ -1676,6 +1677,7 @@ function BrandingScreen({ practice, logoUrl, onUpload, onRemove, onSaveColors })
   const [colorBusy, setColorBusy] = useState(false);
   const [colorErr, setColorErr] = useState("");
   const [justSaved, setJustSaved] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   useEffect(() => {
     setPrimary(practice?.primary_color || BAYBRIDGE_PRIMARY);
     setAccent(practice?.accent_color || BAYBRIDGE_ACCENT);
@@ -1706,6 +1708,22 @@ function BrandingScreen({ practice, logoUrl, onUpload, onRemove, onSaveColors })
       setColorErr(ex.message || "Could not reset colors.");
     } finally {
       setColorBusy(false);
+    }
+  }
+  async function suggestFromLogoClick() {
+    setColorErr("");
+    setSuggesting(true);
+    let url;
+    try {
+      url = await downloadLogoBlobUrl(practice.logo_path);
+      const s = await suggestColorsFromImageUrl(url);
+      if (s) { setPrimary(s.primary); setAccent(s.accent); setJustSaved(false); }
+      else setColorErr("Couldn't pull usable colors from this logo — set them by hand.");
+    } catch {
+      setColorErr("Couldn't read colors from the logo — set them by hand.");
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+      setSuggesting(false);
     }
   }
 
@@ -1795,9 +1813,19 @@ function BrandingScreen({ practice, logoUrl, onUpload, onRemove, onSaveColors })
 
         <div className="brand-color-actions">
           <button className="btn btn-primary" disabled={colorBusy || !dirty} onClick={saveColorsClick}>{colorBusy ? "Saving…" : "Save colors"}</button>
+          {practice?.logo_path && (
+            <button className="btn btn-secondary" disabled={suggesting || colorBusy} onClick={suggestFromLogoClick}>
+              {suggesting ? "Reading logo…" : "Suggest from logo"}
+            </button>
+          )}
           {hasCustomColors && <button className="btn btn-secondary" disabled={colorBusy} onClick={resetColorsClick}>Reset to Baybridge default</button>}
           {justSaved && !dirty && <span className="brand-saved">Saved</span>}
         </div>
+        {practice?.logo_path && (
+          <p className="brand-logo-hint" style={{ marginTop: 10 }}>
+            “Suggest from logo” samples your logo's main colors as a starting point — results vary by logo, so review and adjust before saving.
+          </p>
+        )}
         {colorErr && <div className="warn-line" style={{ marginTop: 12 }}>{colorErr}</div>}
       </div>
     </div>

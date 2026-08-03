@@ -17,10 +17,9 @@ pricing.
 
 **Near-term build order within V1** (current sequencing, not yet all built):
 queue (3d, done) → check-ins (3e, done) → visual design refresh + dashboard-as-hitlist
-(done) → CSV bulk item import → Branding settings screen (owner-facing branding
-editing — logo upload + color pickers + color auto-suggest; design brief in
-`docs/decisions/0005`) → cross-location rebalancing suggestions (design brief in
-`docs/decisions/0004`).
+(done) → CSV bulk item import (done) → Branding settings screen (done — logo upload +
+color pickers + logo-based color auto-suggest; brief in `docs/decisions/0005`) →
+cross-location rebalancing suggestions (design brief in `docs/decisions/0004`).
 
 ## Version 2
 
