@@ -18,13 +18,22 @@ them changes; all ongoing feature work continues here exactly as it does now.
 A brand-new, **separate "Production"** is stood up alongside it, and only ever
 receives code/migrations **after they're proven on Staging.**
 
+## Pre-flight (before this file is relied on for real)
+
+**Smoke-run `supabase/setup_production_from_scratch.sql` once against a genuinely
+fresh, throwaway scratch Supabase project, start to finish.** Inspection confirms
+the structure; only an actual run confirms it executes cleanly (e.g. that the
+concatenation order is right and no migration assumes drifted state). Do this
+before the split below relies on the file — then delete the scratch project.
+
 ## Setup steps (when triggered)
 
 1. Create a second Supabase project (`baybridge-production` or similar).
 2. Run **`supabase/setup_production_from_scratch.sql`** — the single consolidated
    file containing all migrations (0001 onward) concatenated in order. It is
    maintained as new migrations are added, so standing up a fresh environment is
-   always one paste, not a manually-tracked sequence.
+   always one paste, not a manually-tracked sequence. (Already smoke-tested per
+   the pre-flight above.)
 3. Get the new project's URL + anon key; turn **"Confirm email" ON from the
    start** (unlike staging, where it's fine to leave off for testing).
 4. Create a second Netlify site, deploying from a new `production` branch, with
