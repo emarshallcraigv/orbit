@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { fetchLocations, createLocation, renameLocation, deleteLocation, saveLocationOrder, nameTaken } from "./lib/locations";
+import { fetchLocations, createLocation, renameLocation, deleteLocation, saveLocationOrder, saveLocationAddresses, nameTaken } from "./lib/locations";
 import { fetchItems, createItem, updateItem, deleteItem, bulkImportItems } from "./lib/items";
 import { parseCsv, buildPayload, templateCsv } from "./lib/importItems";
 import { uploadLogo, signedLogoUrl, removeLogo, saveColors, downloadLogoBlobUrl } from "./lib/branding";
@@ -1288,14 +1288,97 @@ function LocationSetup({ practiceName, onAdd, onSignOut, error }) {
   );
 }
 
-function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder }) {
+const ADDRESS_FIELDS = [
+  { key: "line1", label: "Street line 1", wide: true },
+  { key: "line2", label: "Street line 2 (suite, optional)", wide: true },
+  { key: "city", label: "City" },
+  { key: "state", label: "State / province" },
+  { key: "postal_code", label: "Postal code" },
+  { key: "country", label: "Country" },
+];
+// Trim fields; return the object, or null if every field is empty (so an empty
+// form stores null, not an empty object — matches the 0014 null semantics).
+function cleanAddress(a) {
+  const out = {};
+  let any = false;
+  for (const f of ADDRESS_FIELDS) {
+    const v = (a[f.key] || "").trim();
+    if (v) { out[f.key] = v; any = true; }
+  }
+  return any ? out : null;
+}
+function emptyAddress() {
+  return { line1: "", line2: "", city: "", state: "", postal_code: "", country: "" };
+}
+
+function AddressFields({ values, onChange }) {
+  return (
+    <div className="addr-grid">
+      {ADDRESS_FIELDS.map((f) => (
+        <div key={f.key} className={"form-field" + (f.wide ? " addr-wide" : "")}>
+          <label>{f.label}</label>
+          <input className="text-input" value={values[f.key] || ""} onChange={(e) => onChange(f.key, e.target.value)} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Per-location address editor. Physical/mailing + billing, billing defaulting to
+// "same as physical" (stored as null). Location settings only — never shown on
+// the inventory/ordering side.
+function AddressEditor({ location, onSave, onCancel }) {
+  const [physical, setPhysical] = useState(() => ({ ...emptyAddress(), ...(location.physical_address || {}) }));
+  const [billingSame, setBillingSame] = useState(location.billing_address == null);
+  const [billing, setBilling] = useState(() => ({ ...emptyAddress(), ...(location.billing_address || {}) }));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function save() {
+    setErr("");
+    setBusy(true);
+    try {
+      await onSave(cleanAddress(physical), billingSame ? null : cleanAddress(billing));
+    } catch (e) {
+      setErr(e.message || "Could not save the address.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="addr-editor">
+      <div className="addr-section-label">Physical / mailing address</div>
+      <AddressFields values={physical} onChange={(k, v) => setPhysical((p) => ({ ...p, [k]: v }))} />
+      <label className="addr-same">
+        <input type="checkbox" checked={billingSame} onChange={(e) => setBillingSame(e.target.checked)} />
+        Billing address same as physical
+      </label>
+      {!billingSame && (
+        <>
+          <div className="addr-section-label">Billing address</div>
+          <AddressFields values={billing} onChange={(k, v) => setBilling((p) => ({ ...p, [k]: v }))} />
+        </>
+      )}
+      {err && <div className="warn-line" style={{ marginTop: 8 }}>{err}</div>}
+      <div className="addr-actions">
+        <button className="btn btn-primary btn-tiny" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save address"}</button>
+        <button className="btn btn-secondary btn-tiny" disabled={busy} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onSaveAddresses }) {
   const [newName, setNewName] = useState("");
   const [addErr, setAddErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [confirmId, setConfirmId] = useState(null); // id pending delete confirmation
+  const [addressId, setAddressId] = useState(null); // id whose address editor is open
   const [rowErr, setRowErr] = useState({}); // id -> message
+
+  const addrSummary = (a) => (a ? [a.line1, a.city, a.state].filter(Boolean).join(", ") : "");
 
   const setError = (id, msg) => setRowErr((p) => ({ ...p, [id]: msg }));
 
@@ -1355,7 +1438,8 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder }) {
         </div>
         <div className="manage-list">
           {locations.map((loc, i) => (
-            <div className="manage-row" key={loc.id}>
+            <div key={loc.id}>
+            <div className="manage-row">
               {editingId === loc.id ? (
                 <div className="form-row form-field-wide" style={{ flex: 1, alignItems: "flex-end" }}>
                   <div className="form-field form-field-wide">
@@ -1382,16 +1466,28 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder }) {
                 <>
                   <div className="manage-main">
                     <div className="flag-name">{loc.name}</div>
+                    {loc.physical_address && addrSummary(loc.physical_address) && (
+                      <div className="flag-meta">{addrSummary(loc.physical_address)}</div>
+                    )}
                     {rowErr[loc.id] && <div className="warn-line" style={{ marginTop: 6 }}>{rowErr[loc.id]}</div>}
                   </div>
                   <div className="manage-actions">
                     <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
                     <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === locations.length - 1} aria-label="Move down">↓</button>
+                    <button className={"btn btn-tiny " + (addressId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => setAddressId(addressId === loc.id ? null : loc.id)}>Address</button>
                     <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(loc.id); setEditValue(loc.name); setError(loc.id, ""); }}>Rename</button>
                     <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(loc.id); setError(loc.id, ""); }} disabled={locations.length <= 1}>Delete</button>
                   </div>
                 </>
               )}
+            </div>
+            {addressId === loc.id && (
+              <AddressEditor
+                location={loc}
+                onCancel={() => setAddressId(null)}
+                onSave={async (physical, billing) => { await onSaveAddresses(loc.id, physical, billing); setAddressId(null); }}
+              />
+            )}
             </div>
           ))}
         </div>
@@ -2547,6 +2643,11 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
     }
   }, [reloadLocations]);
 
+  const handleSaveLocationAddresses = useCallback(async (id, physical, billing) => {
+    await saveLocationAddresses(id, physical, billing);
+    await reloadLocations();
+  }, [reloadLocations]);
+
   // ---- Category CRUD (same shape as locations) --------------------------------
   const handleAddCategory = useCallback(async (name) => {
     const trimmed = (name || "").trim();
@@ -2658,7 +2759,7 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
           )}
           {view === "locations" && (
             <LocationsManager locations={locations} onAdd={handleAddLocation} onRename={handleRenameLocation}
-              onDelete={handleDeleteLocation} onReorder={handleReorderLocations} />
+              onDelete={handleDeleteLocation} onReorder={handleReorderLocations} onSaveAddresses={handleSaveLocationAddresses} />
           )}
           {view === "categories" && (
             <CategoriesManager categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory}
@@ -3008,6 +3109,17 @@ const STYLES = `
 .brand-color-preview .bcp-btn { color: #fff; font-weight: 600; font-size: 13px; padding: 8px 14px; border-radius: 9px; }
 .brand-color-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .brand-saved { font-size: 12px; font-weight: 600; color: var(--good); }
+
+/* Per-location address editor (Locations screen) */
+.addr-editor { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 2px 0 12px; background: var(--paper); }
+.addr-section-label { font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; }
+.addr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.addr-grid .addr-wide { grid-column: 1 / -1; }
+.addr-grid .form-field { min-width: 0; }
+.addr-same { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink); margin: 12px 0 4px; cursor: pointer; }
+.addr-same input { width: 15px; height: 15px; }
+.addr-actions { display: flex; gap: 8px; margin-top: 12px; }
+@media (max-width: 560px) { .addr-grid { grid-template-columns: 1fr; } }
 .account-menu-signout:hover { background: var(--paper); }
 
 .loading-logo { height: 48px; width: 48px; object-fit: contain; margin-bottom: 4px; }

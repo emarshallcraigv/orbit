@@ -13,12 +13,23 @@ import { supabase } from "./supabase";
 export async function fetchLocations(practiceId) {
   const { data, error } = await supabase
     .from("locations")
-    .select("id, name, sort_order")
+    .select("id, name, sort_order, physical_address, billing_address")
     .eq("practice_id", practiceId)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
   if (error) throw error;
   return data || [];
+}
+
+// Save a location's addresses. Pass address objects
+// ({line1,line2,city,state,postal_code,country}) or null. billing = null means
+// "same as physical" (migration 0014). These are location settings only.
+export async function saveLocationAddresses(id, physicalAddress, billingAddress) {
+  const { error } = await supabase
+    .from("locations")
+    .update({ physical_address: physicalAddress, billing_address: billingAddress })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 // Case-insensitive check against an in-memory list, optionally ignoring one id
