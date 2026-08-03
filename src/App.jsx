@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { fetchLocations, createLocation, renameLocation, deleteLocation, saveLocationOrder, nameTaken } from "./lib/locations";
 import { fetchItems, createItem, updateItem, deleteItem, bulkImportItems } from "./lib/items";
 import { parseCsv, buildPayload, templateCsv } from "./lib/importItems";
+import { uploadLogo, signedLogoUrl, removeLogo } from "./lib/branding";
 import { fetchDistributors, createDistributor, updateDistributor, deleteDistributor } from "./lib/distributors";
 import { fetchShipments, createShipment, updateShipmentSplit, receiveShipment } from "./lib/shipments";
 import { fetchTransfers, confirmTransfer } from "./lib/transfers";
@@ -1041,7 +1042,7 @@ function Header({ onMenuClick, practiceName, practiceLogo, profile, practice, on
   );
 }
 
-function SideDrawer({ open, view, setView, onClose, pendingTransfers }) {
+function SideDrawer({ open, view, setView, onClose, pendingTransfers, role }) {
   const items = [
     { key: "inventory", label: "Inventory", icon: "≡" },
     { key: "transfers", label: "Transfers between locations", icon: "⇄", count: pendingTransfers },
@@ -1050,6 +1051,10 @@ function SideDrawer({ open, view, setView, onClose, pendingTransfers }) {
     { key: "categories", label: "Categories", icon: "▤" },
     { key: "distributors", label: "Distributors", icon: "☎" },
   ];
+  // Branding is owner/admin-only (RLS also enforces this on every write).
+  if (role === "owner" || role === "admin") {
+    items.push({ key: "branding", label: "Branding", icon: "✎" });
+  }
   return (
     <>
       {open && <div className="drawer-backdrop" onClick={onClose} />}
@@ -1645,6 +1650,75 @@ function AddItemForm({ onAdd, locations, categories }) {
   );
 }
 
+/* ============================== BRANDING ============================== */
+// Owner/admin screen for the practice's own branding. Slice 1 = logo upload +
+// signed-URL preview (private practice-logos bucket, migration 0013). Color
+// pickers + logo-based color auto-suggest arrive in the next slices.
+function BrandingScreen({ practice, logoUrl, onUpload, onRemove }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const fileRef = useRef(null);
+  const hasCustom = !!practice?.logo_path;
+
+  async function pick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // let the same file be re-selected after an error
+    if (!file) return;
+    setErr("");
+    setBusy(true);
+    try {
+      await onUpload(file);
+    } catch (ex) {
+      setErr(ex.message || "Upload failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setErr("");
+    setBusy(true);
+    try {
+      await onRemove();
+    } catch (ex) {
+      setErr(ex.message || "Could not remove the logo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="view">
+      <div className="view-header">
+        <h1>Branding</h1>
+        <p className="view-sub">Your practice's logo and colors. Everyone on your team sees this branding throughout the app; a practice with no logo shows the Baybridge default.</p>
+      </div>
+
+      <div className="panel">
+        <div className="panel-header"><h2>Logo</h2></div>
+        <div className="brand-logo-editor">
+          <div className="brand-logo-preview">
+            <img src={logoUrl || DEFAULT_LOGO_SRC} alt="Current logo" />
+          </div>
+          <div className="brand-logo-controls">
+            <div className="brand-logo-btns">
+              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={pick} hidden />
+              <button className="btn btn-primary" disabled={busy} onClick={() => fileRef.current?.click()}>
+                {busy ? "Working…" : hasCustom ? "Replace logo" : "Upload logo"}
+              </button>
+              {hasCustom && <button className="btn btn-secondary" disabled={busy} onClick={remove}>Remove</button>}
+            </div>
+            <p className="brand-logo-hint">
+              PNG, JPG, or WebP · up to 2&nbsp;MB.{hasCustom ? "" : " No custom logo yet — showing the Baybridge default."}
+            </p>
+          </div>
+        </div>
+        {err && <div className="warn-line" style={{ marginTop: 12 }}>{err}</div>}
+      </div>
+    </div>
+  );
+}
+
 // CSV bulk import (slice 3). File upload primary, paste-as-text fallback, a
 // downloadable template, and a full validate-before-commit preview. The parse/
 // validate logic and the atomic RPC do the real work (importItems + items.js);
@@ -1926,7 +2000,7 @@ function EditItemInline({ item, onSave, onCancel, locations, categories }) {
 }
 
 /* ============================== APP SHELL ============================== */
-export function MainApp({ profile, practice, onSignOut }) {
+export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
   // Items + distributors are real Supabase tables (step 3a). The remaining
   // entities (checks/shipments/transfers/queue, plus the staff pick-list) are
   // still on the localStorage blob and get migrated in later slices (3b–3e).
@@ -1934,6 +2008,21 @@ export function MainApp({ profile, practice, onSignOut }) {
   const [view, setView] = useState("dashboard");
   const [activeLocation, setActiveLocation] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // The header logo is a private storage object, so resolve a signed URL from
+  // practices.logo_path whenever it changes. Falls back (in the header) to
+  // logo_url, then the Baybridge default. Re-signs on refresh after upload.
+  const [resolvedLogo, setResolvedLogo] = useState(null);
+  useEffect(() => {
+    let active = true;
+    if (practice?.logo_path) {
+      signedLogoUrl(practice.logo_path).then((url) => { if (active) setResolvedLogo(url); });
+    } else {
+      setResolvedLogo(null);
+    }
+    return () => { active = false; };
+  }, [practice?.logo_path]);
+  const headerLogo = resolvedLogo || practice?.logo_url || null;
 
   // Locations come from the practice's own Supabase table (step 2) — the first
   // real table wiring. `locations` holds the full rows; `locationNames` is the
@@ -2218,6 +2307,18 @@ export function MainApp({ profile, practice, onSignOut }) {
     return count;
   }, [reloadItems]);
 
+  // Logo upload/remove. Errors propagate to the Branding screen. After either,
+  // refresh the practice so logo_path (and the re-signed header logo) update.
+  const handleUploadLogo = useCallback(async (file) => {
+    await uploadLogo(practice.id, file, practice.logo_path);
+    await onPracticeRefresh?.();
+  }, [practice?.id, practice?.logo_path, onPracticeRefresh]);
+
+  const handleRemoveLogo = useCallback(async () => {
+    await removeLogo(practice.id, practice.logo_path);
+    await onPracticeRefresh?.();
+  }, [practice?.id, practice?.logo_path, onPracticeRefresh]);
+
   const handleAddDistributor = useCallback(async (fields) => {
     const name = (fields?.name || "").trim();
     if (!name) return { error: "Enter a distributor name." };
@@ -2407,11 +2508,11 @@ export function MainApp({ profile, practice, onSignOut }) {
     <div className="app-root">
       <style>{STYLES}</style>
       {practiceBrandCss(practice) && <style>{practiceBrandCss(practice)}</style>}
-      <Header onMenuClick={() => setDrawerOpen(true)} practiceName={practice?.name} practiceLogo={practice?.logo_url}
+      <Header onMenuClick={() => setDrawerOpen(true)} practiceName={practice?.name} practiceLogo={headerLogo}
         profile={profile} practice={practice} onSignOut={onSignOut} />
 
       <div className="app-shell">
-        <SideDrawer open={drawerOpen} view={view} setView={setView} onClose={() => setDrawerOpen(false)} pendingTransfers={pendingTransfers} />
+        <SideDrawer open={drawerOpen} view={view} setView={setView} onClose={() => setDrawerOpen(false)} pendingTransfers={pendingTransfers} role={profile?.role} />
 
         <main className="main-panel">
           {view === "dashboard" && (
@@ -2450,6 +2551,9 @@ export function MainApp({ profile, practice, onSignOut }) {
           )}
           {view === "transfers" && (
             <TransfersView items={itemList} transfers={transfers} onUpdate={handleUpdateTransfer} />
+          )}
+          {view === "branding" && (profile?.role === "owner" || profile?.role === "admin") && (
+            <BrandingScreen practice={practice} logoUrl={headerLogo} onUpload={handleUploadLogo} onRemove={handleRemoveLogo} />
           )}
         </main>
       </div>
@@ -2757,6 +2861,17 @@ const STYLES = `
 .import-row-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); flex-shrink: 0; }
 .import-done { text-align: center; padding: 24px 8px; color: var(--ink-soft); font-size: 14px; }
 .import-done-count { font-size: 40px; font-weight: 800; color: var(--good); font-family: ui-monospace, "SF Mono", Menlo, monospace; line-height: 1; }
+
+/* Branding screen — logo editor */
+.brand-logo-editor { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.brand-logo-preview {
+  width: 96px; height: 96px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--paper); display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.brand-logo-preview img { max-width: 82%; max-height: 82%; object-fit: contain; }
+.brand-logo-controls { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.brand-logo-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.brand-logo-hint { font-size: 11.5px; color: var(--ink-soft); margin: 2px 0 0; line-height: 1.45; max-width: 340px; }
 .account-menu-signout:hover { background: var(--paper); }
 
 .loading-logo { height: 48px; width: 48px; object-fit: contain; margin-bottom: 4px; }

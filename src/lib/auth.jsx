@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
     if (resolved.practice_id) {
       const { data: prac } = await supabase
         .from("practices")
-        .select("id, name, join_code, primary_color, accent_color, logo_url, timezone")
+        .select("id, name, join_code, primary_color, accent_color, logo_url, logo_path, timezone")
         .eq("id", resolved.practice_id)
         .maybeSingle();
       setPractice(prac || null);

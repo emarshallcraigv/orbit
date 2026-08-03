@@ -13,7 +13,7 @@ import { MainApp } from "./App.jsx";
  *   5. the app itself (signed in AND belongs to a practice)
  */
 function Gate() {
-  const { initializing, recoveryMode, session, profile, practice, signOut } = useAuth();
+  const { initializing, recoveryMode, session, profile, practice, signOut, refresh } = useAuth();
 
   if (initializing) {
     return (
@@ -44,7 +44,7 @@ function Gate() {
   if (!profile.practice_id) return <Onboarding />;
 
   // Fully onboarded → the actual app.
-  return <MainApp profile={profile} practice={practice} onSignOut={signOut} />;
+  return <MainApp profile={profile} practice={practice} onSignOut={signOut} onPracticeRefresh={refresh} />;
 }
 
 const loadingStyle = {
@@ -56,7 +56,7 @@ const loadingStyle = {
 };
 
 const SPINNER_CSS = `
-.root-spinner { width: 30px; height: 30px; border: 3px solid #E1E6EE; border-top-color: #15409E; border-radius: 50%; animation: root-spin 0.8s linear infinite; }
+.root-spinner { width: 30px; height: 30px; border: 3px solid #E1E6EE; border-top-color: #14263D; border-radius: 50%; animation: root-spin 0.8s linear infinite; }
 @keyframes root-spin { to { transform: rotate(360deg); } }
 `;
 
