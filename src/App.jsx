@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { fetchLocations, createLocation, renameLocation, deleteLocation, saveLocationOrder, nameTaken } from "./lib/locations";
-import { fetchItems, createItem, updateItem, deleteItem } from "./lib/items";
+import { fetchItems, createItem, updateItem, deleteItem, bulkImportItems } from "./lib/items";
+import { parseCsv, buildPayload, templateCsv } from "./lib/importItems";
 import { fetchDistributors, createDistributor, updateDistributor, deleteDistributor } from "./lib/distributors";
 import { fetchShipments, createShipment, updateShipmentSplit, receiveShipment } from "./lib/shipments";
 import { fetchTransfers, confirmTransfer } from "./lib/transfers";
@@ -1644,10 +1645,159 @@ function AddItemForm({ onAdd, locations, categories }) {
   );
 }
 
-function ManageItems({ items, onAdd, onUpdate, onDelete, locations, categories }) {
+// CSV bulk import (slice 3). File upload primary, paste-as-text fallback, a
+// downloadable template, and a full validate-before-commit preview. The parse/
+// validate logic and the atomic RPC do the real work (importItems + items.js);
+// this is the flow around them.
+function ImportItemsModal({ onClose, onImport, existingItems, categories }) {
+  const [csvText, setCsvText] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null); // { count } on success, { error } on failure
+
+  const ctx = useMemo(() => ({ existingItems, categories }), [existingItems, categories]);
+
+  function runParse(text, name) {
+    setCsvText(text);
+    setFileName(name || "");
+    setResult(null);
+    if (!String(text).trim()) { setPreview(null); return; }
+    try {
+      setPreview(parseCsv(text, ctx));
+    } catch (e) {
+      setPreview(null);
+      setResult({ error: "Could not read that CSV: " + (e.message || e) });
+    }
+  }
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      runParse(await file.text(), file.name);
+    } catch {
+      setResult({ error: "Could not read that file." });
+    }
+  }
+
+  function downloadTemplate() {
+    const blob = new Blob([templateCsv()], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "baybridge-items-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function doImport() {
+    const payload = preview ? buildPayload(preview.rows) : [];
+    if (!payload.length) return;
+    setBusy(true);
+    try {
+      const count = await onImport(payload);
+      setResult({ count });
+    } catch (e) {
+      setResult({ error: e.message || "Import failed." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const done = result && result.count != null;
+  const canImport = preview && !preview.missingNameColumn && preview.summary.toImport > 0 && !busy && !done;
+
+  return (
+    <>
+      <div className="modal-backdrop" onClick={busy ? undefined : onClose} />
+      <div className="modal-card" role="dialog" aria-modal="true" aria-label="Import items from CSV">
+        <div className="modal-head">
+          <h2>Import items from CSV</h2>
+          <button className="modal-x" onClick={onClose} aria-label="Close">×</button>
+        </div>
+
+        {done ? (
+          <div className="import-done">
+            <div className="import-done-count">{result.count}</div>
+            <div>item{result.count === 1 ? "" : "s"} imported.</div>
+            <button className="btn btn-primary" onClick={onClose} style={{ marginTop: 18 }}>Done</button>
+          </div>
+        ) : (
+          <>
+            <p className="import-intro">
+              Columns: <code>name</code> (required), description, tracking_type (Good/Low or Quantity),
+              cabinet, category, unit_cost, threshold, unit. Unknown categories import uncategorized;
+              items already in your catalog are skipped.
+              <button className="linklike" onClick={downloadTemplate}>Download template</button>
+            </p>
+
+            <div className="import-inputs">
+              <label className="btn btn-secondary import-file-btn">
+                Choose CSV file
+                <input type="file" accept=".csv,text/csv" onChange={handleFile} hidden />
+              </label>
+              {fileName && <span className="import-filename">{fileName}</span>}
+            </div>
+
+            <details className="import-paste">
+              <summary>…or paste CSV text</summary>
+              <textarea
+                className="text-input"
+                rows={4}
+                value={csvText}
+                onChange={(e) => runParse(e.target.value, "")}
+                placeholder="name,description,tracking_type,cabinet,category,unit_cost,threshold,unit"
+              />
+            </details>
+
+            {result && result.error && <div className="warn-line" style={{ marginTop: 12 }}>{result.error}</div>}
+
+            {preview && (
+              <div className="import-preview">
+                {preview.missingNameColumn && <div className="warn-line">No <code>name</code> column found — check the header row.</div>}
+                {preview.unknownHeaders.length > 0 && (
+                  <div className="import-note">Ignored unknown column{preview.unknownHeaders.length > 1 ? "s" : ""}: {preview.unknownHeaders.join(", ")}</div>
+                )}
+                <div className="import-summary">
+                  <span className="import-chip ok">{preview.summary.toImport} to import</span>
+                  {preview.summary.skipped > 0 && <span className="import-chip warn">{preview.summary.skipped} skipped</span>}
+                  {preview.summary.errors > 0 && <span className="import-chip err">{preview.summary.errors} error{preview.summary.errors > 1 ? "s" : ""}</span>}
+                </div>
+                <div className="import-rows">
+                  {preview.rows.map((r) => (
+                    <div className={"import-row import-" + (r.skip ? "skip" : r.status)} key={r.line}>
+                      <div className="import-row-main">
+                        <span className="import-row-name">{(r.resolved?.name) || String(r.raw.name || "").trim() || "(no name)"}</span>
+                        <span className="import-row-msg">{r.messages.join(" ")}</span>
+                      </div>
+                      <span className="import-row-tag">{r.skip ? "skip" : r.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+              <button className="btn btn-primary" onClick={doImport} disabled={!canImport}>
+                {busy ? "Importing…" : preview ? `Import ${preview.summary.toImport} item${preview.summary.toImport === 1 ? "" : "s"}` : "Import"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations, categories }) {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const catById = useMemo(() => Object.fromEntries((categories || []).map((c) => [c.id, c.name])), [categories]);
   const filtered = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -1660,8 +1810,21 @@ function ManageItems({ items, onAdd, onUpdate, onDelete, locations, categories }
       </div>
 
       <div className="panel">
+        <div className="panel-header">
+          <h2>Add items</h2>
+          <button className="btn btn-secondary btn-tiny" onClick={() => setImportOpen(true)}>Import CSV</button>
+        </div>
         <AddItemForm onAdd={onAdd} locations={locations} categories={categories} />
       </div>
+
+      {importOpen && (
+        <ImportItemsModal
+          onClose={() => setImportOpen(false)}
+          onImport={onBulkImport}
+          existingItems={items}
+          categories={categories}
+        />
+      )}
 
       <div className="panel">
         <div className="panel-header">
@@ -2047,6 +2210,14 @@ export function MainApp({ profile, practice, onSignOut }) {
     }
   }, [reloadItems]);
 
+  // Bulk CSV import. Lets the error propagate so the modal can surface it; the
+  // RPC is atomic, so a failure means nothing was imported.
+  const handleBulkImport = useCallback(async (payload) => {
+    const count = await bulkImportItems(payload);
+    await reloadItems();
+    return count;
+  }, [reloadItems]);
+
   const handleAddDistributor = useCallback(async (fields) => {
     const name = (fields?.name || "").trim();
     if (!name) return { error: "Enter a distributor name." };
@@ -2263,7 +2434,7 @@ export function MainApp({ profile, practice, onSignOut }) {
             <InventoryView items={itemList} checks={checks} shipments={shipments} transfers={transfers} locations={locationNames} />
           )}
           {view === "items" && (
-            <ManageItems items={itemList} onAdd={handleAddItem} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} locations={locationNames} categories={categories} />
+            <ManageItems items={itemList} onAdd={handleAddItem} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} onBulkImport={handleBulkImport} locations={locationNames} categories={categories} />
           )}
           {view === "locations" && (
             <LocationsManager locations={locations} onAdd={handleAddLocation} onRename={handleRenameLocation}
@@ -2544,6 +2715,48 @@ const STYLES = `
 .account-menu-code { font-size: 11.5px; color: var(--ink-soft); margin-top: 8px; }
 .account-menu-code span { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700; color: var(--ink); letter-spacing: 0.06em; }
 .account-menu-signout { margin-top: 12px; width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+
+/* CSV import modal (sits above the bottom bar z-45) */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20,30,40,0.45); z-index: 50; }
+.modal-card {
+  position: fixed; z-index: 51; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(680px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow-y: auto;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px;
+  box-shadow: 0 20px 60px rgba(20,38,61,0.25);
+}
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.modal-head h2 { font-size: 17px; font-weight: 700; margin: 0; color: var(--ink); }
+.modal-x { background: none; border: none; font-size: 22px; line-height: 1; color: var(--ink-soft); cursor: pointer; padding: 0 4px; font-family: inherit; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+
+.import-intro { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; margin: 0 0 14px; }
+.import-intro code { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 11.5px; }
+.linklike { background: none; border: none; color: var(--brand-green-dark); font-weight: 600; cursor: pointer; font-family: inherit; font-size: 12.5px; padding: 0; margin-left: 6px; text-decoration: underline; }
+.import-inputs { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.import-file-btn { display: inline-flex; }
+.import-filename { font-size: 12px; color: var(--ink-soft); }
+.import-paste { margin-top: 10px; }
+.import-paste summary { font-size: 12px; color: var(--ink-soft); cursor: pointer; }
+.import-paste textarea { width: 100%; margin-top: 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; resize: vertical; }
+
+.import-preview { margin-top: 14px; }
+.import-note { font-size: 11.5px; color: var(--low); margin-bottom: 8px; }
+.import-summary { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.import-chip { font-size: 11.5px; font-weight: 700; border-radius: 100px; padding: 3px 10px; }
+.import-chip.ok { background: var(--good-bg); color: var(--good); }
+.import-chip.warn { background: var(--low-bg); color: var(--low); }
+.import-chip.err { background: var(--reorder-bg); color: var(--reorder); }
+.import-rows { display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+.import-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; border-radius: 8px; border-left: 3px solid var(--line); background: var(--paper); }
+.import-ok { border-left-color: var(--good); }
+.import-warning, .import-skip { border-left-color: var(--low); background: var(--low-bg); }
+.import-error { border-left-color: var(--reorder); background: var(--reorder-bg); }
+.import-row-main { min-width: 0; flex: 1; }
+.import-row-name { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.import-row-msg { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 1px; line-height: 1.4; }
+.import-row-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); flex-shrink: 0; }
+.import-done { text-align: center; padding: 24px 8px; color: var(--ink-soft); font-size: 14px; }
+.import-done-count { font-size: 40px; font-weight: 800; color: var(--good); font-family: ui-monospace, "SF Mono", Menlo, monospace; line-height: 1; }
 .account-menu-signout:hover { background: var(--paper); }
 
 .loading-logo { height: 48px; width: 48px; object-fit: contain; margin-bottom: 4px; }
