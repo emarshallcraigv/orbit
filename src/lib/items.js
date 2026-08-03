@@ -116,3 +116,13 @@ export async function deleteItem(id) {
   const { error } = await supabase.from("items").delete().eq("id", id);
   if (error) throw error;
 }
+
+// Bulk CSV import — atomic, via the bulk_import_items RPC (migration 0012).
+// `items` is the resolved payload from importItems.buildPayload(). The RPC
+// derives the practice from current_practice_id() and scopes every write to it;
+// returns the count inserted.
+export async function bulkImportItems(items) {
+  const { data, error } = await supabase.rpc("bulk_import_items", { p_items: items });
+  if (error) throw error;
+  return data;
+}
