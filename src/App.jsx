@@ -10,7 +10,11 @@ import { fetchChecks, saveCheck } from "./lib/checks";
 import { rankHitlist, daysBetween } from "./lib/hitlist";
 
 /* ============================== BRAND ============================== */
-const LOGO_SRC = "/logo.jpg";
+// Baybridge's own icon is the platform default logo: shown on the loading screen
+// and as the header fallback for any practice that hasn't set its own logo_url.
+// A real tenant's logo comes from practices.logo_url — including Mann's, whose
+// row now stores /logo.jpg, so no practice depends on this fallback for identity.
+const DEFAULT_LOGO_SRC = "/baybridge-icon-512.png";
 
 /* ============================== SEED DATA ============================== */
 // Locations are no longer a hardcoded constant — they come from the practice's
@@ -138,8 +142,9 @@ function safeColor(value) {
 }
 
 // Runtime brand override, scoped to .app-root, from the practice's own colors.
-// Mann's stored colors equal the stylesheet defaults, so this is a no-op for
-// them (their look is unchanged); other practices get their own primary/accent.
+// The stylesheet defaults are Baybridge's own navy/teal, so a practice with no
+// stored colors shows the platform look; a practice with primary_color/
+// accent_color set (Mann included) overrides them with its own palette.
 function practiceBrandCss(practice) {
   if (!practice) return "";
   const primary = safeColor(practice.primary_color);
@@ -1023,9 +1028,9 @@ function Header({ onMenuClick, practiceName, practiceLogo, profile, practice, on
       <button className="hamburger-btn" onClick={onMenuClick} aria-label="Open menu">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 5h16M2 10h16M2 15h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
       </button>
-      {/* The practice's own logo once inside their tenant; Mann (practice #1)
-          has no uploaded logo_url, so it falls back to its existing /logo.jpg. */}
-      <img src={practiceLogo || LOGO_SRC} alt="" className="brand-logo" />
+      {/* The practice's own logo (practices.logo_url). Any practice without one
+          falls back to Baybridge's platform icon — never another tenant's logo. */}
+      <img src={practiceLogo || DEFAULT_LOGO_SRC} alt="" className="brand-logo" />
       <div className="brand-text">
         <div className="brand-name">{practiceName || "Supply System"}</div>
         <div className="brand-tag">Supply System</div>
@@ -2213,7 +2218,7 @@ export function MainApp({ profile, practice, onSignOut }) {
     return (
       <div className="app-loading">
         <style>{STYLES}</style>
-        <img src={LOGO_SRC} alt="" className="loading-logo" />
+        <img src={DEFAULT_LOGO_SRC} alt="" className="loading-logo" />
         <div className="spinner" />
         <div>Loading supply data…</div>
       </div>
@@ -2294,14 +2299,17 @@ export function MainApp({ profile, practice, onSignOut }) {
 /* ============================== STYLES ============================== */
 const STYLES = `
 :root {
-  --ink: #15409E;
-  --ink-2: #1B4FC4;
+  /* Baybridge platform defaults (navy + teal). An un-customized practice sees
+     this look; a practice with its own primary_color/accent_color overrides
+     --ink / --brand-green at runtime (see practiceBrandCss). */
+  --ink: #14263D;
+  --ink-2: #2C4A6B;
   --ink-soft: #66738F;
   --paper: #F5F7FA;
   --card: #FFFFFF;
   --line: #E1E6EE;
-  --brand-green: #6FA030;
-  --brand-green-dark: #5C8827;
+  --brand-green: #4089A2;
+  --brand-green-dark: #35748A;
   --good: #4C8A3F;
   --good-bg: #E9F2E2;
   --low: #B0762A;

@@ -44,15 +44,23 @@ stack and the current state; it is no longer a step-by-step build plan.
    multi-table compound flows are atomic Postgres RPCs (`create_shipment`,
    `create_shipment_from_queue`, `receive_shipment`).
 
-**Also built:** Baybridge branding applied at runtime (auth screens are Baybridge;
-inside a practice the header uses that practice's own `logo_url`/colors, with a
-"Powered by Baybridge" strip); a persistent top-right account menu; and various UI.
+**Also built:**
+- **Baybridge branding, applied at runtime.** The platform default *is* Baybridge's
+  own look — navy `#14263D` / teal `#4089A2` + the Baybridge icon. A practice that
+  sets its own `logo_url` / `primary_color` / `accent_color` overrides it; a practice
+  that hasn't sees Baybridge, never another tenant's branding. "Powered by Baybridge"
+  strip throughout. (Mann keeps its own blue/green + logo via its stored row values.)
+- **A persistent top-right account menu.**
+- **Visual design refresh + dashboard-as-hitlist.** The dashboard is an urgency-ranked
+  action list — order / transfer / receive rows interleaved by a (never-displayed)
+  urgency score, with severity accents and tints, real SVG icons, accent-colored
+  primary buttons, input focus rings, and consistent hover states.
 
-**Not yet built (see ROADMAP.md):** owner-facing branding *editing* (logo upload via
-Supabase Storage + color pickers — the read/apply side is done, the edit UI isn't);
-UI role-gating (owner/admin vs staff — RLS already enforces the DB side); the visual
-design refresh + dashboard-as-hitlist; CSV bulk item import; and cross-location
-rebalancing (design brief in `docs/decisions/0004`).
+**Not yet built (see ROADMAP.md):** owner-facing branding *editing* (a Branding
+settings screen — logo upload via Supabase Storage + color pickers, with color
+auto-suggest from the uploaded logo; the read/apply side is done, the edit UI isn't);
+UI role-gating (owner/admin vs staff — RLS already enforces the DB side); CSV bulk
+item import; and cross-location rebalancing (design brief in `docs/decisions/0004`).
 
 ## Migrations & decision docs
 
