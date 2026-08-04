@@ -3,6 +3,9 @@
 The documentation system. Product/vision docs describe intent; technical docs
 describe what is **actually built**; process docs codify how we work.
 
+**Start here:** [`CURRENT_STATUS.md`](CURRENT_STATUS.md) — the operational heartbeat;
+the whole company's current state in under 60 seconds.
+
 ## Product & vision
 - [`FOUNDER.md`](FOUNDER.md) — founder context. ⚠️ *placeholder — awaiting verbatim content.*
 - [`PRODUCT_VISION.md`](PRODUCT_VISION.md) — canonical vision. ⚠️ *placeholder — awaiting verbatim content.*
