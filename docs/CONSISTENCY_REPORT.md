@@ -37,8 +37,10 @@ real result, not an oversight.
 > now gated to `owner`/`admin` at the **RLS layer**, ANDed onto each policy's tenant
 > scope, with the UI Delete control hidden from staff to match. `INSERT`/`UPDATE`
 > stay open (normal staff work); child/join tables stay ungated (their deletes are
-> ordinary editing). This closes the sharpest edge — "a staff user can empty the
-> catalog." **Still open, by design:** the full capabilities/permissions model
+> ordinary editing). Verified by a **role-dimension isolation test** (two real
+> sessions in one practice: staff DELETE blocked on all five entities, owner DELETE
+> succeeds). This closes the sharpest edge — "a staff user can empty the catalog."
+> **Still open, by design:** the full capabilities/permissions model
 > (read-only, clinical-staff, etc.) remains deferred — ADR
 > [`0006`](decisions/0006-role-model-deferred.md); the description below stands as
 > the record of the original finding.

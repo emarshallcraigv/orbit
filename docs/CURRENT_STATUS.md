@@ -12,7 +12,7 @@
 - **Stage:** Alpha
 - **Current Milestone:** Complete Version 1
 - **Current Objective:** Close consistency-report findings, then finish remaining V1 features
-- **Project Health:** 🟡 Needs Attention — small security/timezone gaps identified and actively being closed; no blockers otherwise
+- **Project Health:** 🟢 On Track — the consistency report's new High/Medium findings (H1 destructive-action gating, H2 timezone, M1 dead code) are all closed and verified; proceeding through the held V1 items. No blockers.
 
 ## Current Milestone
 - **Objective:** Ship a feature-complete, real-customer-ready Version 1.
@@ -20,10 +20,11 @@
 - **Estimated completion:** Several small/medium items remain; no fixed date yet.
 
 ## Current Priorities
-1. Gate destructive actions to owner/admin (H1, in progress — migration `0016` ready to apply) — timezone settability ✓ done; dead hardcoded location names ✓ removed
-2. Release the three held engineering items as one batch (practice lifecycle status, error monitoring, permanent test suite)
-3. Resume invitation UI → cross-location rebalancing → assignments/reminders/notifications
-4. Stand up staging/production separation ahead of real onboarding
+1. Release the three held engineering items as one batch (practice lifecycle status model — plan first; error monitoring / Sentry; permanent test suite)
+2. Resume invitation UI → cross-location rebalancing → assignments/reminders/notifications
+3. Stand up staging/production separation ahead of real onboarding
+
+_Consistency-report findings closed: H1 destructive-action gating ✓ (migration `0016`, role-dimension isolation test passed), H2 timezone ✓, M1 dead code ✓._
 
 ## Founder Decisions Needed
 - **Pricing** — still undecided, still approaching relevance
@@ -39,7 +40,7 @@
 - **Production Incidents:** 0
 
 ## Currently In Progress
-- Destructive-action role-gating (consistency report H1) — in progress: migration `0016` written and reviewed, UI complement built and building clean; awaiting apply + role-dimension isolation test, then out of this section
+- Releasing the three held engineering items as one batch: practice-lifecycle status model (planning first — no code until the plan is approved), Sentry error monitoring, and the permanent test suite.
 
 ## Next Planned Work
 See [`../ROADMAP.md`](../ROADMAP.md). Headline: held items released as a batch → invitation UI → rebalancing → notifications → staging/production split.
@@ -54,7 +55,7 @@ React · Supabase (Postgres/Auth/Storage) · GitHub · Netlify. Business logic l
 Stripe · PostHog · Sentry · Email service — see [`INTEGRATIONS.md`](INTEGRATIONS.md).
 
 ## Important Decisions
-See [`DECISIONS.md`](DECISIONS.md). Most recent: full-repository consistency report completed ([`CONSISTENCY_REPORT.md`](CONSISTENCY_REPORT.md)) — zero critical findings, tenant isolation confirmed intact; role model stays deferred (ADR [`0006`](decisions/0006-role-model-deferred.md)) with an interim destructive-action gate approved as a separate, smaller fix.
+See [`DECISIONS.md`](DECISIONS.md). Most recent: full-repository consistency report completed ([`CONSISTENCY_REPORT.md`](CONSISTENCY_REPORT.md)) — zero critical findings, tenant isolation confirmed intact; role model stays deferred (ADR [`0006`](decisions/0006-role-model-deferred.md)) with an interim destructive-action gate now applied and verified (migration `0016`, role-dimension isolation test passed).
 
 ## Next Recommended Founder Review
 Pricing.
