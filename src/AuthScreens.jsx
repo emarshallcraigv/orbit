@@ -26,6 +26,30 @@ function AuthShell({ title, subtitle, children, footer }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Frozen practice (suspended / offboarded)                            */
+/* Shown when the member is attached to a practice whose lifecycle      */
+/* status is suspended/offboarded — the practice row itself is frozen   */
+/* by RLS, so we only ever have its name + status (my_practice_status). */
+/* ------------------------------------------------------------------ */
+export function FrozenScreen({ status, name, onSignOut }) {
+  const suspended = status === "suspended";
+  const who = name || "This practice";
+  return (
+    <AuthShell
+      title={suspended ? "Practice suspended" : "Practice closed"}
+      subtitle={
+        suspended
+          ? `${who} is currently suspended. Please contact Baybridge support to restore access.`
+          : `${who} has been closed. If you believe this is a mistake, contact Baybridge support.`
+      }
+      footer={<button className="auth-link" onClick={onSignOut}>Sign out</button>}
+    >
+      <p className="auth-hint">Your account itself is fine — this only affects access to {who}.</p>
+    </AuthShell>
+  );
+}
+
 function Field({ label, ...props }) {
   return (
     <label className="auth-field">

@@ -20,6 +20,10 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [practice, setPractice] = useState(null);
+  // Set when the member belongs to a practice whose lifecycle status is
+  // suspended/offboarded: the practice row is hidden by RLS, so we hold just its
+  // { name, status } (from my_practice_status) to render the frozen screen.
+  const [frozen, setFrozen] = useState(null);
   // "initializing" = still resolving the very first getSession() call, so we
   // don't flash the login screen before we know whether a session exists.
   const [initializing, setInitializing] = useState(true);
@@ -32,6 +36,7 @@ export function AuthProvider({ children }) {
     if (!user) {
       setProfile(null);
       setPractice(null);
+      setFrozen(null);
       return;
     }
 
@@ -45,6 +50,7 @@ export function AuthProvider({ children }) {
       console.error("Failed to load profile:", error.message);
       setProfile(null);
       setPractice(null);
+      setFrozen(null);
       return;
     }
 
@@ -74,9 +80,23 @@ export function AuthProvider({ children }) {
         .select("id, name, join_code, primary_color, accent_color, logo_url, logo_path, timezone")
         .eq("id", resolved.practice_id)
         .maybeSingle();
-      setPractice(prac || null);
+      if (prac) {
+        setPractice(prac);
+        setFrozen(null);
+      } else {
+        // The practice row is unreadable. The expected cause is the lifecycle
+        // freeze (RLS hides a suspended/offboarded practice from current_practice_id).
+        // Ask the narrow status helper, which returns only { name, status } for the
+        // caller's own practice, and surface the frozen screen only for a real
+        // frozen status (not a transient miss).
+        const { data: st } = await supabase.rpc("my_practice_status");
+        const row = Array.isArray(st) ? st[0] : st;
+        setPractice(null);
+        setFrozen(row && (row.status === "suspended" || row.status === "offboarded") ? row : null);
+      }
     } else {
       setPractice(null);
+      setFrozen(null);
     }
   }, []);
 
@@ -113,6 +133,7 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
     setProfile(null);
     setPractice(null);
+    setFrozen(null);
     setRecoveryMode(false);
   }, []);
 
@@ -121,6 +142,7 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     profile,
     practice,
+    frozen,
     initializing,
     recoveryMode,
     clearRecoveryMode: () => setRecoveryMode(false),

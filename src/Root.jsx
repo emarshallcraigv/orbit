@@ -1,6 +1,6 @@
 import React from "react";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { AuthFlow, ResetPassword, Onboarding } from "./AuthScreens";
+import { AuthFlow, ResetPassword, Onboarding, FrozenScreen } from "./AuthScreens";
 import { MainApp } from "./App.jsx";
 
 /**
@@ -13,7 +13,7 @@ import { MainApp } from "./App.jsx";
  *   5. the app itself (signed in AND belongs to a practice)
  */
 function Gate() {
-  const { initializing, recoveryMode, session, profile, practice, signOut, refresh } = useAuth();
+  const { initializing, recoveryMode, session, profile, practice, frozen, signOut, refresh } = useAuth();
 
   if (initializing) {
     return (
@@ -42,6 +42,21 @@ function Gate() {
 
   // Signed in but not attached to a practice → create or join one.
   if (!profile.practice_id) return <Onboarding />;
+
+  // Attached to a practice whose lifecycle status is suspended/offboarded → the
+  // practice row is frozen by RLS; show the frozen screen instead of the app.
+  if (frozen) return <FrozenScreen status={frozen.status} name={frozen.name} onSignOut={signOut} />;
+
+  // Attached to a practice but its row hasn't resolved yet (transient) — hold on
+  // a spinner rather than rendering the app with a null practice.
+  if (!practice) {
+    return (
+      <div style={loadingStyle}>
+        <div className="root-spinner" />
+        <style>{SPINNER_CSS}</style>
+      </div>
+    );
+  }
 
   // Fully onboarded → the actual app.
   return <MainApp profile={profile} practice={practice} onSignOut={signOut} onPracticeRefresh={refresh} />;
