@@ -44,17 +44,11 @@ const TIMEZONES = [
 // prop (an array of names). See docs step 2. Anything that used to iterate the old
 // LOCATIONS array now iterates that prop, so a practice works with 1 or 20 offices.
 
-// Legacy shipment records stored per-location quantity in fixed columns
-// (tampa/palmetto/stpete/largo). New records use a `split` map keyed by location
-// name. shipQty reads whichever exists, so old blob data keeps computing until the
-// step 3 data-layer rewrite retires the legacy shape entirely.
-const LEGACY_SHIP_FIELD = { "Tampa": "tampa", "Palmetto": "palmetto", "St. Pete": "stpete", "Largo": "largo" };
+// A shipment's per-location quantity, from its `split` map (keyed by location
+// name). Every shipment now comes from Supabase with a split (shipment_locations),
+// so this is the only shape — the old blob-era fixed-column fallback is gone.
 function shipQty(shipment, location) {
-  if (shipment.split && Object.prototype.hasOwnProperty.call(shipment.split, location)) {
-    return Number(shipment.split[location]) || 0;
-  }
-  const legacy = LEGACY_SHIP_FIELD[location];
-  return legacy ? Number(shipment[legacy]) || 0 : 0;
+  return Number(shipment.split ? shipment.split[location] : 0) || 0;
 }
 
 // Splits a total quantity as evenly as possible across the given locations, keeping

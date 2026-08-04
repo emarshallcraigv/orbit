@@ -83,7 +83,8 @@ real result, not an oversight.
 
 ## Medium
 
-### M1 — Dead legacy code with hardcoded Mann-specific location names (`LEGACY_SHIP_FIELD`)
+### M1 — Dead legacy code with hardcoded Mann-specific location names (`LEGACY_SHIP_FIELD`) — ✅ RESOLVED
+> Resolved: `LEGACY_SHIP_FIELD` and the fallback branch removed; `shipQty` now reads only the `split` map (which every Supabase shipment carries). Build clean; no refs remain.
 - **Description:** `App.jsx` defines
   `LEGACY_SHIP_FIELD = { Tampa, Palmetto, "St. Pete", Largo }` and `shipQty` falls
   back to it for blob-era shipment records. The blob layer is fully retired (the
