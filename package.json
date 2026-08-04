@@ -11,6 +11,7 @@
     "test:integration": "node --env-file=.env.local --experimental-websocket --test tests/integration"
   },
   "dependencies": {
+    "@sentry/react": "^10.69.0",
     "@supabase/supabase-js": "^2.45.4",
     "papaparse": "^5.5.4",
     "react": "^18.3.1",
