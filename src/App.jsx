@@ -78,6 +78,13 @@ function fmtDate(d) {
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Compact date (M/D/YY) for dense cells like the inventory freshness stamp.
+function fmtDateShort(d) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ""));
+  if (!m) return "";
+  return Number(m[2]) + "/" + Number(m[3]) + "/" + m[1].slice(2);
+}
+
 function suggestedStatus(item, count) {
   if (item.type !== "Quantity") return null;
   if (count === "" || count === null || count === undefined || isNaN(count)) return null;
@@ -118,6 +125,27 @@ function liveStock(item, location, checks, shipments, transfers) {
   const lastDate = check ? check.date : null;
   const rec = receivedSince(shipments, transfers, item.id, location, lastDate);
   return lastCount + rec;
+}
+
+// When did THIS location's live count last change? The most recent of: its last
+// check, or a shipment/transfer that credited this location AFTER that check
+// (i.e. the same events that make up liveStock). Per-location on purpose — a
+// per-row "most recent across locations" would mask a stale location behind a
+// fresh one. Returns a YYYY-MM-DD string, or null if nothing has ever set it.
+function liveStockUpdatedAt(item, location, checks, shipments, transfers) {
+  const check = checks[keyFor(location, item.id)];
+  const checkDate = check ? check.date : null;
+  const shipDates = shipments
+    .filter((s) => s.itemId === item.id && s.status === "Received" && s.dateReceived &&
+      (!s.shipTo || s.shipTo === location) && (!checkDate || s.dateReceived > checkDate) &&
+      shipQty(s, location) > 0)
+    .map((s) => s.dateReceived);
+  const transferDates = (transfers || [])
+    .filter((t) => t.itemId === item.id && t.toLocation === location && t.status === "Received" &&
+      t.dateReceived && (!checkDate || t.dateReceived > checkDate) && (Number(t.qty) || 0) > 0)
+    .map((t) => t.dateReceived);
+  const all = [checkDate, ...shipDates, ...transferDates].filter(Boolean);
+  return all.length ? all.sort().at(-1) : null; // YYYY-MM-DD sorts chronologically
 }
 
 function invStatus(item, stock) {
@@ -752,7 +780,7 @@ function QueueRow({ q, item, distributors, onUpdate, locations }) {
     <div className="queue-row">
       <div className="queue-main">
         <div className="flag-name">{item ? item.name : q.itemId}</div>
-        <div className="flag-meta">flagged {fmtDate(q.dateFlagged)}</div>
+        <div className="flag-meta">flagged {fmtDate(q.dateFlagged)}{q.dateOrdered ? " · ordered " + fmtDate(q.dateOrdered) : ""}</div>
         <div className="flag-meta muted">
           {q.locations.map((loc) => {
             const d = q.details[loc];
@@ -912,7 +940,7 @@ function InventoryView({ items, checks, shipments, transfers, locations }) {
     <div className="view">
       <div className="view-header">
         <h1>Inventory snapshot</h1>
-        <p className="view-sub">Live stock for your {qtyItems.length} quantity-tracked items — last count plus anything received since.</p>
+        <p className="view-sub">Live stock for your {qtyItems.length} quantity-tracked items — last count plus anything received since. The small date under each number is when that location's count last changed (a check, receipt, or confirmed transfer).</p>
       </div>
       <div className="panel">
         <input className="text-input" placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 12 }} />
@@ -923,14 +951,22 @@ function InventoryView({ items, checks, shipments, transfers, locations }) {
             <span>Total</span><span>Status</span>
           </div>
           {filtered.map((item) => {
-            const stocks = locations.map((loc) => liveStock(item, loc, checks, shipments, transfers));
-            const total = stocks.reduce((a, b) => a + b, 0);
+            const cells = locations.map((loc) => ({
+              qty: liveStock(item, loc, checks, shipments, transfers),
+              updated: liveStockUpdatedAt(item, loc, checks, shipments, transfers),
+            }));
+            const total = cells.reduce((a, c) => a + c.qty, 0);
             const status = invStatus(item, total);
             return (
               <div className="inv-row" key={item.id} style={gridCols}>
                 <span className="inv-name">{item.name}</span>
                 <span className="muted">{item.threshold}</span>
-                {stocks.map((s, i) => <span key={i}>{s}</span>)}
+                {cells.map((c, i) => (
+                  <span key={i} className="inv-cell">
+                    {c.qty}
+                    <span className="inv-updated">{c.updated ? fmtDateShort(c.updated) : "—"}</span>
+                  </span>
+                ))}
                 <span><strong>{total}</strong></span>
                 <span><Badge status={status} small /></span>
               </div>
@@ -3141,6 +3177,8 @@ const STYLES = `
 .inv-head { font-size: 10.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid var(--line); }
 .inv-row { border-bottom: 1px solid var(--line); }
 .inv-name { font-weight: 600; font-size: 12px; }
+.inv-cell { display: flex; flex-direction: column; line-height: 1.15; }
+.inv-updated { font-size: 9.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; margin-top: 1px; }
 
 /* Fixed bottom bar = nav row + a thin "Powered by Baybridge" strip. z-index sits
    ABOVE the drawer (30) so the nav tabs stay reachable while the drawer is open. */
