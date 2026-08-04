@@ -124,7 +124,12 @@ real result, not an oversight.
 - **Timing:** Cleanup; fold into a nearby migration. **Reconcile:** already in
   `GAP_ANALYSIS.md`.
 
-### M3 — Practice hard-delete orphans a member's profile
+### M3 — Practice hard-delete orphans a member's profile — 🟡 RESOLVING (lifecycle batch)
+> Addressed by the practice-lifecycle model (ADR
+> [`0007`](decisions/0007-practice-lifecycle.md), migration `0017`): the app no
+> longer hard-deletes — removal is `status = 'offboarded'` (data retained, members
+> not orphaned) — and the onboarding RPCs upsert the profile as defensive depth.
+> Lands in the held-items batch.
 - **Description:** `profiles.practice_id ON DELETE CASCADE` means hard-deleting a
   practice deletes members' profiles and orphans their auth users (they can't
   re-onboard); the onboarding RPC assumes the profile exists.

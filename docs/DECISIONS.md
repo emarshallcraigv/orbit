@@ -13,6 +13,7 @@ existing records — those live as individual files in
 | 0004 | Cross-location rebalancing (design brief) | [`decisions/0004-cross-location-rebalancing.md`](decisions/0004-cross-location-rebalancing.md) |
 | 0005 | Branding settings screen (design brief) | [`decisions/0005-branding-settings-screen.md`](decisions/0005-branding-settings-screen.md) |
 | 0006 | Role model: deferred, not resolved | [`decisions/0006-role-model-deferred.md`](decisions/0006-role-model-deferred.md) |
+| 0007 | Practice lifecycle status model | [`decisions/0007-practice-lifecycle.md`](decisions/0007-practice-lifecycle.md) |
 
 > Note: numbering starts at `0002` (there is no `0001` ADR in the repo). Several
 > significant decisions are also captured **in migration headers** rather than as

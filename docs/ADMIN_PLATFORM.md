@@ -48,9 +48,12 @@ policies.
 ## What it would provide (scope for later)
 - Practice directory + health (counts, activity, last-active).
 - Support view into a specific practice (read-only) to reproduce issues.
-- Provisioning/lifecycle: create, suspend, or offboard a practice (the practice
-  hard-delete caveat in [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md) must be resolved
-  first — onboarding RPC should upsert the profile).
+- Provisioning/lifecycle: create, suspend, or offboard a practice. The backing
+  model now exists — `practices.status` + the `current_practice_id()` freeze (ADR
+  [`0007`](decisions/0007-practice-lifecycle.md), `0017`), and the hard-delete
+  caveat is resolved (offboarding replaces hard-delete; onboarding RPCs upsert the
+  profile). What remains is the **operator surface** to drive these transitions
+  (still later work); suspend/offboard themselves are real, RLS-enforced states.
 - Platform metrics (feeds Phase-2 thinking and PostHog).
 
 ## Non-goals

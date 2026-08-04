@@ -44,6 +44,24 @@ this build. New work is expected to meet the same bar.
   can't drive something (a native file-picker, a download), say so explicitly
   rather than implying it was tested.
 
+### The permanent test suite
+
+Tests live in the repo and are re-runnable — the isolation tests we used to write as
+throwaway scripts are now committed. Runner: Node's built-in **`node --test`** (zero
+new dependency, matches the plain-Node convention above).
+
+- `tests/unit/` — **pure logic, no env/DB**: hitlist ranking, CSV validation, color
+  extraction, shipment split math, date formatting. Run in CI-style with
+  `npm test` → `node --test tests/unit`.
+- `tests/integration/` — **live-Supabase isolation tests** (two real auth sessions,
+  direct queries). Each is **guarded to skip when the Supabase env vars are absent**,
+  so `npm test` stays offline-safe; run them explicitly with
+  `npm run test:integration` (loads `.env.local`, uses the project-local Node). This
+  is where the tenant two-practice tests, the H1 role-dimension delete-gating test,
+  and the `0017` status-dimension test live.
+- A test committed here is the durable form of "actually run and its output shown":
+  the standard isn't weakened, it's made repeatable.
+
 ## Delivery cadence
 
 - **Commit + push after every slice** — this is part of the definition of "done"

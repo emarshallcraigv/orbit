@@ -40,7 +40,7 @@ _Consistency-report findings closed: H1 destructive-action gating ✓ (migration
 - **Production Incidents:** 0
 
 ## Currently In Progress
-- Releasing the three held engineering items as one batch: practice-lifecycle status model (planning first — no code until the plan is approved), Sentry error monitoring, and the permanent test suite.
+- The three held engineering items as one batch — **doc updates up for review** (ADR `0007` practice-lifecycle, plus SECURITY/DATABASE_SCHEMA/ADMIN_PLATFORM/INTEGRATIONS/ENGINEERING_STANDARDS/README and the M3 reconciliations). On approval, implement in sequence: permanent test suite → Sentry (dormant until DSN) → practice-lifecycle model (`0017`, behind its own migration + status-dimension isolation test).
 
 ## Next Planned Work
 See [`../ROADMAP.md`](../ROADMAP.md). Headline: held items released as a batch → invitation UI → rebalancing → notifications → staging/production split.
@@ -55,7 +55,7 @@ React · Supabase (Postgres/Auth/Storage) · GitHub · Netlify. Business logic l
 Stripe · PostHog · Sentry · Email service — see [`INTEGRATIONS.md`](INTEGRATIONS.md).
 
 ## Important Decisions
-See [`DECISIONS.md`](DECISIONS.md). Most recent: full-repository consistency report completed ([`CONSISTENCY_REPORT.md`](CONSISTENCY_REPORT.md)) — zero critical findings, tenant isolation confirmed intact; role model stays deferred (ADR [`0006`](decisions/0006-role-model-deferred.md)) with an interim destructive-action gate now applied and verified (migration `0016`, role-dimension isolation test passed).
+See [`DECISIONS.md`](DECISIONS.md). Newest: practice-lifecycle status model (ADR [`0007`](decisions/0007-practice-lifecycle.md)) — `status` gate via `current_practice_id()`, full-freeze suspension (read-only deferred), offboarding replaces hard-delete (resolves M3), new practices default to `active`. Prior: full-repository consistency report completed ([`CONSISTENCY_REPORT.md`](CONSISTENCY_REPORT.md)) — zero critical findings, tenant isolation confirmed intact; role model stays deferred (ADR [`0006`](decisions/0006-role-model-deferred.md)) with an interim destructive-action gate now applied and verified (migration `0016`, role-dimension isolation test passed).
 
 ## Next Recommended Founder Review
 Pricing.

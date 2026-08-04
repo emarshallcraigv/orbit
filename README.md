@@ -16,8 +16,9 @@ stack and the current state; it is no longer a step-by-step build plan.
   tenant isolation (not application-level filtering)
 - **Hosting:** Netlify
 - **Source control:** GitHub
-- **Later:** Resend (email), PostHog (analytics), Sentry (error monitoring) — not
-  wired yet, don't block on these.
+- **Later:** Resend (email), PostHog (analytics) — not wired yet, don't block on
+  these. **Sentry** (error monitoring) is wired but **dormant** — it activates only
+  when `VITE_SENTRY_DSN` is set (added at launch).
 
   > ⚠️ **Deferred, must not be forgotten:** Supabase Auth's "Confirm email"
   > setting is currently turned **OFF** so development signups work without a
@@ -61,6 +62,19 @@ settings screen — logo upload via Supabase Storage + color pickers, with color
 auto-suggest from the uploaded logo; the read/apply side is done, the edit UI isn't);
 UI role-gating (owner/admin vs staff — RLS already enforces the DB side); CSV bulk
 item import; and cross-location rebalancing (design brief in `docs/decisions/0004`).
+
+## Tests
+
+Committed and re-runnable (Node's built-in `node --test`):
+
+```bash
+npm test              # unit: pure logic, no DB — offline-safe
+npm run test:integration   # live-Supabase isolation tests (needs .env.local)
+```
+
+Unit tests live in `tests/unit/`; the tenant/role/status isolation tests live in
+`tests/integration/` and skip cleanly when the Supabase env vars are absent. See
+[`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md).
 
 ## Migrations & decision docs
 

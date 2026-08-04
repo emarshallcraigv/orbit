@@ -20,9 +20,18 @@ does this user belong to."
 ### Identity & tenancy
 - **`practices`** — the tenant. `id`, `name`, `join_code` (unique), branding
   (`logo_url`, `logo_path`, `primary_color`, `accent_color`), `settings jsonb`,
-  `timezone`, `created_at`. Colors default to `null` = the Baybridge platform
-  default (migration `0011`); `logo_path` points at the private Storage object
-  (`0013`).
+  `timezone`, `status` + `status_changed_at` (`0017`), `created_at`. Colors default
+  to `null` = the Baybridge platform default (migration `0011`); `logo_path` points
+  at the private Storage object (`0013`).
+  **Lifecycle status** (`0017`, ADR [`0007`](decisions/0007-practice-lifecycle.md)):
+  `status ∈ {trial, active, suspended, offboarded}`, `not null default 'active'`.
+  `trial`/`active` = full access; `suspended`/`offboarded` = **fully frozen** —
+  enforced centrally by `current_practice_id()` returning `NULL` unless
+  `status in ('trial','active')`, so every tenant policy closes at once. The **only**
+  exception is a narrow read path exposing a frozen practice's `name` and `status`
+  (those two fields only) to its own members, for the "practice suspended" screen.
+  Offboarding is the normal removal path (data retained, members not orphaned);
+  hard-delete is an out-of-band operator last resort.
 - **`profiles`** — one row per `auth.users` entry. `id` (FK → `auth.users`,
   cascade), `practice_id` (FK → `practices`, cascade), `email`, `display_name`,
   `role` (`owner` / `admin` / `staff`). Created automatically by the
@@ -103,10 +112,14 @@ does this user belong to."
 
 ## Referential-integrity choices worth knowing
 - Tenant tables cascade on `practices` delete (removing a practice removes its
-  data). **Caveat:** `profiles.practice_id` is `ON DELETE CASCADE`, so hard-deleting
-  a practice out from under live members deletes their profile and orphans the
-  auth user (they can't re-onboard). Fine for test cleanup; if practice deletion
-  ever becomes a real feature, the onboarding RPC must upsert the profile.
+  data). **Caveat (resolved by `0017`):** `profiles.practice_id` is
+  `ON DELETE CASCADE`, so a *hard*-delete still deletes members' profiles and
+  orphans them. As of the lifecycle model (ADR
+  [`0007`](decisions/0007-practice-lifecycle.md)) the app no longer hard-deletes —
+  removal is `status = 'offboarded'` (data retained, members not orphaned), and hard
+  delete is an out-of-band operator action only. As defensive depth, the onboarding
+  RPCs now **upsert** the profile, so even a manual hard-delete can't strand a
+  returning user. This closes finding M3.
 - `performed_by` / `actor_id` back-references are `ON DELETE SET NULL` (`0009`) so a
   departed staff member can be removed without blocking on their history.
 - Managed-list links (`category_id`, `cabinet_id`) are `ON DELETE SET NULL` —

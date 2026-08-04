@@ -17,9 +17,20 @@ sequencing that avoids taking on integrations before the data they need exists.
 |---|---|---|
 | **Resend** | Transactional email | Unblocks email confirmation + targeted invitations. Highest-leverage next integration. |
 | **PostHog** | Product analytics | Understand real usage before building Phase 2/4. |
-| **Sentry** | Error monitoring | Catch client/prod errors once there are real users. |
+| **Sentry** | Error monitoring | **Wired, dormant** — `@sentry/react` initialized only when `VITE_SENTRY_DSN` is set; add the DSN at launch to activate. |
 | **Stripe** | Billing/subscriptions | When the product is charged for. |
 | **Distributor APIs** | Direct ordering + product/SKU/pricing data | The core of Phase 3; large scope; needs per-distributor catalog modeling. |
+
+## Sentry — how it's wired
+
+`@sentry/react` is initialized in `main.jsx` **only if `VITE_SENTRY_DSN` is
+present** — with no DSN it's a complete no-op, so the app runs identically without
+it (matching the "degrade gracefully when absent" principle below). The app is
+wrapped in a Sentry `ErrorBoundary`. **Privacy posture** (see
+[`SECURITY.md`](SECURITY.md) §7): `sendDefaultPii: false`, errors-only
+(`tracesSampleRate: 0`), and a `beforeSend` that scrubs anything practice-identifying
+— we transmit stack traces, never tenant data, member emails, or PHI-adjacent
+content. The DSN is a launch-time config value, not a code change.
 
 ## Recommended sequencing
 

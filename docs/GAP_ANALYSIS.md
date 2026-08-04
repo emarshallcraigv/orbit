@@ -11,10 +11,10 @@ three engineering sprints.
 > hardcoded location names). The two are reconciled; items shared with it are
 > cross-referenced there.
 >
-> Reflects the codebase at **15 migrations**. Several items below are currently
-> **on hold pending this review** (practice-lifecycle change, Sentry, test suite,
-> timestamp fixes) — they're classified honestly here, but nothing proceeds until
-> approved.
+> Reflects the codebase at **16 migrations** (`0017` lifecycle in the active
+> held-items batch). The previously-held items are now **in progress** in the agreed
+> sequence — permanent test suite → Sentry → practice-lifecycle model — the timestamp
+> fixes already shipped, and the H1/H2/M1 consistency findings are closed.
 
 ## Foundation & security
 
@@ -26,7 +26,7 @@ three engineering sprints.
 | Compound-write atomic RPCs | ✅ Complete | — | shipments/queue/receive/import/copy. |
 | Audit trail captured (`activity_log`) | ✅ Complete (capture) | — | Written everywhere; **not surfaced** (see below). |
 | Email confirmation ON + Resend | ❌ Missing | **S** (once Resend) | Hard launch blocker; policy off for dev. |
-| Practice hard-delete orphans a profile | ❌ Missing (bug) | **S** | Onboarding RPC should upsert the profile. On hold (practice-lifecycle). |
+| Practice hard-delete orphans a profile (M3) | 🟡 Resolving | **S** | Fixed by the lifecycle model (`0017`, ADR `0007`): offboarding replaces hard-delete; onboarding RPCs upsert the profile. In the held-items batch. |
 | Legacy `staff_members` table cleanup | ❌ Missing | **S** | Unused post-rebuild; remove once confirmed no refs. |
 
 ## Core product (Phase 1 / V1)
