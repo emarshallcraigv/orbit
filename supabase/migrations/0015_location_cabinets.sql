@@ -72,9 +72,10 @@ where lc.location_id = ic.location_id
   and ic.cabinet is not null and btrim(ic.cabinet) <> ''
   and ic.cabinet_id is null;
 
--- 4. bulk_import_items: resolve-or-create the cabinet label per location and link
---    via cabinet_id, so imports keep the managed list authoritative instead of
---    reintroducing free text. Signature unchanged -> CREATE OR REPLACE (existing
+-- 4. bulk_import_items: match the cabinet value against each location's EXISTING
+--    labels and link via cabinet_id — never create a label from import (an
+--    unmatched cabinet is left unset + warned in the preview, exactly like an
+--    unmatched category). Signature unchanged -> CREATE OR REPLACE (existing
 --    authenticated grant preserved). Security posture IDENTICAL to 0012:
 --    SECURITY INVOKER, search_path pinned, practice derived from
 --    current_practice_id(), every insert still RLS-checked (items / location_
@@ -123,18 +124,20 @@ begin
     )
     returning id into v_item_id;
 
-    -- One cabinet value -> its managed label at each of the practice's own
-    -- locations (created if it doesn't exist yet), linked by cabinet_id.
+    -- One cabinet value -> matched against each location's EXISTING labels
+    -- (case-insensitive). NO implicit label creation from import — an unmatched
+    -- cabinet is left unset at that location (no item_cabinets row) and the
+    -- client preview warns the row. Identical rule, and identical reasoning, to
+    -- the unmatched-category handling above: importing must never quietly mint
+    -- new managed labels, or free-text drift just relocates into the CSV path.
     v_cabinet := nullif(trim(coalesce(v_item->>'cabinet', '')), '');
     if v_cabinet is not null then
       for v_loc in select id from locations where practice_id = v_practice_id loop
         select id into v_cab_id from location_cabinets
         where location_id = v_loc and lower(label) = lower(v_cabinet);
-        if v_cab_id is null then
-          insert into location_cabinets (location_id, label) values (v_loc, v_cabinet)
-          returning id into v_cab_id;
+        if v_cab_id is not null then
+          insert into item_cabinets (item_id, location_id, cabinet_id) values (v_item_id, v_loc, v_cab_id);
         end if;
-        insert into item_cabinets (item_id, location_id, cabinet_id) values (v_item_id, v_loc, v_cab_id);
       end loop;
     end if;
 
@@ -150,11 +153,13 @@ begin
 end;
 $$;
 
--- 5. "Copy this list to another location." SECURITY INVOKER: the source SELECT
---    and the target INSERT both run under the caller's RLS, so both locations
---    must be the caller's own — it physically cannot copy across practices.
---    Existing labels at the target are skipped (case-insensitive). Returns the
---    number of labels actually added.
+-- 5. "Copy this list to another location." SECURITY INVOKER: everything runs
+--    under the caller's RLS, so both locations must be the caller's own — it
+--    physically cannot copy across practices. Both are checked EXPLICITLY up
+--    front so the error experience is consistent: without the source check, an
+--    invalid target fails loud (insert policy) but an invalid source would fail
+--    quiet (RLS filters the SELECT to nothing -> returns 0). Existing labels at
+--    the target are skipped (case-insensitive). Returns the number added.
 create or replace function copy_location_cabinets(p_from_location uuid, p_to_location uuid)
 returns integer
 language plpgsql
@@ -163,6 +168,13 @@ set search_path = public
 as $$
 declare v_count int;
 begin
+  if not exists (select 1 from locations where id = p_from_location and practice_id = current_practice_id()) then
+    raise exception 'Source location not found';
+  end if;
+  if not exists (select 1 from locations where id = p_to_location and practice_id = current_practice_id()) then
+    raise exception 'Target location not found';
+  end if;
+
   insert into location_cabinets (location_id, label, sort_order)
   select p_to_location, lc.label, lc.sort_order
   from location_cabinets lc
