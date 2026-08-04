@@ -1264,7 +1264,7 @@ function DistributorDirectory({ distributors, onAdd, onUpdate, onRemove }) {
                   ) : (
                     <>
                       <button className="btn btn-secondary btn-tiny" onClick={() => setEditingId(d.id)}>Edit</button>
-                      <button className="btn btn-danger btn-tiny" onClick={() => setConfirmId(d.id)}>Delete</button>
+                      {canDelete && <button className="btn btn-danger btn-tiny" onClick={() => setConfirmId(d.id)}>Delete</button>}
                     </>
                   )}
                 </div>
@@ -1278,7 +1278,7 @@ function DistributorDirectory({ distributors, onAdd, onUpdate, onRemove }) {
   );
 }
 
-function DistributorsScreen({ distributorRows, onAdd, onUpdate, onRemove }) {
+function DistributorsScreen({ distributorRows, onAdd, onUpdate, onRemove, canDelete }) {
   return (
     <div className="view">
       <div className="view-header">
@@ -1334,7 +1334,7 @@ function LocationSetup({ practiceName, onAdd, onSignOut, error }) {
 // Per-location managed cabinet/storage labels (0015). Add/rename/delete this
 // location's own labels + copy the list to another location. Item assignment
 // (in the item form) picks strictly from these — nothing is created implicitly.
-function CabinetsEditor({ location, cabinets, otherLocations, onAdd, onRename, onDelete, onCopy }) {
+function CabinetsEditor({ location, cabinets, otherLocations, onAdd, onRename, onDelete, onCopy, canDelete }) {
   const [newLabel, setNewLabel] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1397,7 +1397,7 @@ function CabinetsEditor({ location, cabinets, otherLocations, onAdd, onRename, o
                 <>
                   <span className="cab-label">{c.label}</span>
                   <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(c.id); setEditValue(c.label); setErr(""); }}>Rename</button>
-                  <button className="btn btn-danger btn-tiny" onClick={() => remove(c.id)}>Delete</button>
+                  {canDelete && <button className="btn btn-danger btn-tiny" onClick={() => remove(c.id)}>Delete</button>}
                 </>
               )}
             </div>
@@ -1503,7 +1503,7 @@ function AddressEditor({ location, onSave, onCancel }) {
 }
 
 function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onSaveAddresses,
-  cabinetsByLoc, onAddCabinet, onRenameCabinet, onDeleteCabinet, onCopyCabinets }) {
+  cabinetsByLoc, onAddCabinet, onRenameCabinet, onDeleteCabinet, onCopyCabinets, canDelete }) {
   const [newName, setNewName] = useState("");
   const [addErr, setAddErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1613,7 +1613,7 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
                     <button className={"btn btn-tiny " + (addressId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => { setAddressId(addressId === loc.id ? null : loc.id); setCabinetsId(null); }}>Address</button>
                     <button className={"btn btn-tiny " + (cabinetsId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => { setCabinetsId(cabinetsId === loc.id ? null : loc.id); setAddressId(null); }}>Cabinets</button>
                     <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(loc.id); setEditValue(loc.name); setError(loc.id, ""); }}>Rename</button>
-                    <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(loc.id); setError(loc.id, ""); }} disabled={locations.length <= 1}>Delete</button>
+                    {canDelete && <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(loc.id); setError(loc.id, ""); }} disabled={locations.length <= 1}>Delete</button>}
                   </div>
                 </>
               )}
@@ -1634,6 +1634,7 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
                 onRename={onRenameCabinet}
                 onDelete={onDeleteCabinet}
                 onCopy={onCopyCabinets}
+                canDelete={canDelete}
               />
             )}
             </div>
@@ -1645,7 +1646,7 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
 }
 
 /* ============================== CATEGORIES ============================== */
-function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder }) {
+function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder, canDelete }) {
   const [newName, setNewName] = useState("");
   const [addErr, setAddErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1741,7 +1742,7 @@ function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder })
                     <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
                     <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === categories.length - 1} aria-label="Move down">↓</button>
                     <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(cat.id); setEditValue(cat.name); setError(cat.id, ""); }}>Rename</button>
-                    <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(cat.id); setError(cat.id, ""); }}>Delete</button>
+                    {canDelete && <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(cat.id); setError(cat.id, ""); }}>Delete</button>}
                   </div>
                 </>
               )}
@@ -2241,7 +2242,7 @@ function ImportItemsModal({ onClose, onImport, existingItems, categories, cabine
   );
 }
 
-function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations, categories, cabinetsByLoc }) {
+function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations, categories, cabinetsByLoc, canDelete }) {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -2307,9 +2308,9 @@ function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations
                         <button className="btn btn-danger btn-tiny" onClick={() => { onDelete(item.id); setConfirmDeleteId(null); }}>Confirm delete</button>
                         <button className="btn btn-secondary btn-tiny" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
                       </>
-                    ) : (
+                    ) : canDelete ? (
                       <button className="btn btn-secondary btn-tiny" onClick={() => setConfirmDeleteId(item.id)}>Delete</button>
-                    )}
+                    ) : null}
                   </div>
                 </>
               )}
@@ -2933,6 +2934,9 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
   const totalFlagged = Object.values(locCounts).reduce((a, b) => a + b, 0);
   const pendingQueue = queue.filter((q) => q.status === "Pending").length;
   const pendingTransfers = transfers.filter((t) => t.status === "Pending").length;
+  // Outright deletion of managed entities is owner/admin-only (RLS 0016 enforces
+  // it; this hides the buttons so staff don't hit a rejected action).
+  const canManage = profile?.role === "owner" || profile?.role === "admin";
 
   if (!ready) {
     return (
@@ -2983,21 +2987,21 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
             <InventoryView items={itemList} checks={checks} shipments={shipments} transfers={transfers} locations={locationNames} />
           )}
           {view === "items" && (
-            <ManageItems items={itemList} onAdd={handleAddItem} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} onBulkImport={handleBulkImport} locations={locationNames} categories={categories} cabinetsByLoc={cabinetsByLoc} />
+            <ManageItems items={itemList} onAdd={handleAddItem} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} onBulkImport={handleBulkImport} locations={locationNames} categories={categories} cabinetsByLoc={cabinetsByLoc} canDelete={canManage} />
           )}
           {view === "locations" && (
             <LocationsManager locations={locations} onAdd={handleAddLocation} onRename={handleRenameLocation}
               onDelete={handleDeleteLocation} onReorder={handleReorderLocations} onSaveAddresses={handleSaveLocationAddresses}
               cabinetsByLoc={cabinetsByLoc} onAddCabinet={handleAddCabinet} onRenameCabinet={handleRenameCabinet}
-              onDeleteCabinet={handleDeleteCabinet} onCopyCabinets={handleCopyCabinets} />
+              onDeleteCabinet={handleDeleteCabinet} onCopyCabinets={handleCopyCabinets} canDelete={canManage} />
           )}
           {view === "categories" && (
             <CategoriesManager categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory}
-              onDelete={handleDeleteCategory} onReorder={handleReorderCategories} />
+              onDelete={handleDeleteCategory} onReorder={handleReorderCategories} canDelete={canManage} />
           )}
           {view === "distributors" && (
             <DistributorsScreen distributorRows={distributorRows || []}
-              onAdd={handleAddDistributor} onUpdate={handleUpdateDistributor} onRemove={handleRemoveDistributor} />
+              onAdd={handleAddDistributor} onUpdate={handleUpdateDistributor} onRemove={handleRemoveDistributor} canDelete={canManage} />
           )}
           {view === "transfers" && (
             <TransfersView items={itemList} transfers={transfers} onUpdate={handleUpdateTransfer} />

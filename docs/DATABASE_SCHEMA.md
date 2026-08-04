@@ -111,6 +111,11 @@ does this user belong to."
   departed staff member can be removed without blocking on their history.
 - Managed-list links (`category_id`, `cabinet_id`) are `ON DELETE SET NULL` —
   deleting a category/cabinet unsets it on items rather than deleting the items.
+- **Role-gated deletes (`0016`):** `DELETE` on the top-level managed entities
+  (`locations`, `items`, `categories`, `distributors`, `location_cabinets`) is
+  restricted to `owner`/`admin` — the role check is ANDed onto each policy's tenant
+  scope. `INSERT`/`UPDATE` and child/join-table deletes are unchanged. Interim fix;
+  full role model deferred (ADR [`0006`](decisions/0006-role-model-deferred.md)).
 
 See also: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md),
 [`SECURITY.md`](SECURITY.md), and ADR

@@ -82,6 +82,17 @@ policies and Storage policies gate owner/admin writes for branding). UI role-gat
 is **partial** — e.g. the Branding nav item is owner/admin-only — and is tracked as
 an area still being filled in; the DB does not depend on the UI for enforcement.
 
+**Destructive deletes are owner/admin-only.** Outright `DELETE` on the top-level
+managed entities — locations, items, categories, distributors, and cabinet labels
+(`location_cabinets`) — is gated to `owner`/`admin` at the RLS layer (migration
+`0016`), ANDed onto each policy's existing tenant scope; the UI hides the Delete
+control from staff to match. `INSERT`/`UPDATE` stay open to all roles (adding and
+editing are normal staff work), and child/join tables (`item_cabinets`,
+`shipment_locations`, `queue_locations`) are deliberately **not** gated because their
+row-deletes happen during ordinary editing. This is the **interim** least-privilege
+fix on the existing 3-role model; the full capabilities/permissions model stays
+deferred (ADR [`0006`](decisions/0006-role-model-deferred.md)).
+
 ## 6. Secrets handling
 
 - The **anon key** is public by design and shipped in the client bundle; it grants

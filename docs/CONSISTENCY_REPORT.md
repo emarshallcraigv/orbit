@@ -31,7 +31,17 @@ real result, not an oversight.
 
 ## High
 
-### H1 — Within-practice authorization is effectively flat; destructive actions are open to every staff member
+### H1 — Within-practice authorization is effectively flat; destructive actions are open to every staff member — 🟡 INTERIM FIX APPLIED
+> Interim mitigation shipped (migration `0016`): outright `DELETE` on the top-level
+> managed entities (locations, items, categories, distributors, cabinet labels) is
+> now gated to `owner`/`admin` at the **RLS layer**, ANDed onto each policy's tenant
+> scope, with the UI Delete control hidden from staff to match. `INSERT`/`UPDATE`
+> stay open (normal staff work); child/join tables stay ungated (their deletes are
+> ordinary editing). This closes the sharpest edge — "a staff user can empty the
+> catalog." **Still open, by design:** the full capabilities/permissions model
+> (read-only, clinical-staff, etc.) remains deferred — ADR
+> [`0006`](decisions/0006-role-model-deferred.md); the description below stands as
+> the record of the original finding.
 - **Description:** Of all RLS policies, only **three** are role-gated (practices
   UPDATE, invitations, and Storage-logo writes — all `owner`/`admin`). Everything
   else — creating, editing, and **deleting** items, locations, categories, cabinet
