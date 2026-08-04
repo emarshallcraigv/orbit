@@ -61,7 +61,8 @@ real result, not an oversight.
   practice shouldn't have every user able to delete the catalog. Sequence it with
   the role decision, not after it.
 
-### H2 — A practice's timezone is stored but never settable; every practice is silently locked to America/New_York
+### H2 — A practice's timezone is stored but never settable; every practice is silently locked to America/New_York — ✅ RESOLVED
+> Resolved: a time-zone selector on the owner/admin **Settings** screen writes `practices.timezone` (verified: default Eastern → saved Central → persisted across reload).
 - **Description:** The app is carefully timezone-aware (`practice_today`,
   `checked_at` rendered in the practice's tz, `fmtDate` parsed as local). But
   `practices.timezone` defaults to `'America/New_York'` and there is **no UI to

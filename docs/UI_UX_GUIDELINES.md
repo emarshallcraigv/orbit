@@ -53,8 +53,8 @@ Add new glyphs to that component rather than importing a library.
 - **Managed-list pickers, not free text**, wherever drift is a risk: category and
   cabinet assignment are dropdowns of the practice's/location's own managed list.
 - **Bottom nav** for the four primary flows; a **drawer** ("More") for management
-  screens (Locations, Categories, Distributors, Manage items, Branding — the last
-  owner/admin-only). A persistent top-right account menu.
+  screens (Locations, Categories, Distributors, Manage items, Settings — the last
+  owner/admin-only; holds branding + time zone). A persistent top-right account menu.
 - **"Powered by Baybridge"** strip persists inside every practice; auth/onboarding
   screens are Baybridge-branded (the platform), a practice's own screens are its
   branding.

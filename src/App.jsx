@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { fetchLocations, createLocation, renameLocation, deleteLocation, saveLocationOrder, saveLocationAddresses, nameTaken } from "./lib/locations";
 import { fetchItems, createItem, updateItem, deleteItem, bulkImportItems } from "./lib/items";
 import { parseCsv, buildPayload, templateCsv } from "./lib/importItems";
-import { uploadLogo, signedLogoUrl, removeLogo, saveColors, downloadLogoBlobUrl } from "./lib/branding";
+import { uploadLogo, signedLogoUrl, removeLogo, saveColors, savePracticeTimezone, downloadLogoBlobUrl } from "./lib/branding";
 import { suggestColorsFromImageUrl } from "./lib/logoColors";
 import { fetchDistributors, createDistributor, updateDistributor, deleteDistributor } from "./lib/distributors";
 import { fetchShipments, createShipment, updateShipmentSplit, receiveShipment } from "./lib/shipments";
@@ -25,6 +25,18 @@ const DEFAULT_LOGO_SRC = "/baybridge-icon-512.png";
 // owner edits from the current effective color, per docs/decisions/0005.
 const BAYBRIDGE_PRIMARY = "#14263D";
 const BAYBRIDGE_ACCENT = "#4089A2";
+
+// Practice timezone options (IANA names). Drives practice_today() + every date.
+// US-first for the initial market; extend as other regions onboard.
+const TIMEZONES = [
+  ["America/New_York", "Eastern — New York"],
+  ["America/Chicago", "Central — Chicago"],
+  ["America/Denver", "Mountain — Denver"],
+  ["America/Phoenix", "Mountain (no DST) — Phoenix"],
+  ["America/Los_Angeles", "Pacific — Los Angeles"],
+  ["America/Anchorage", "Alaska — Anchorage"],
+  ["Pacific/Honolulu", "Hawaii — Honolulu"],
+];
 
 /* ============================== SEED DATA ============================== */
 // Locations are no longer a hardcoded constant — they come from the practice's
@@ -1097,7 +1109,7 @@ function SideDrawer({ open, view, setView, onClose, pendingTransfers, role }) {
   ];
   // Branding is owner/admin-only (RLS also enforces this on every write).
   if (role === "owner" || role === "admin") {
-    items.push({ key: "branding", label: "Branding", icon: "✎" });
+    items.push({ key: "settings", label: "Settings", icon: "✎" });
   }
   return (
     <>
@@ -1888,11 +1900,23 @@ function AddItemForm({ onAdd, locations, categories, cabinetsByLoc }) {
 // Owner/admin screen for the practice's own branding. Slice 1 = logo upload +
 // signed-URL preview (private practice-logos bucket, migration 0013). Color
 // pickers + logo-based color auto-suggest arrive in the next slices.
-function BrandingScreen({ practice, logoUrl, onUpload, onRemove, onSaveColors }) {
+function SettingsScreen({ practice, logoUrl, onUpload, onRemove, onSaveColors, onSaveTimezone }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef(null);
   const hasCustom = !!practice?.logo_path;
+
+  // Time zone: drives practice_today() + every displayed date. Save on change.
+  const currentTz = practice?.timezone || "America/New_York";
+  const [tzBusy, setTzBusy] = useState(false);
+  const [tzErr, setTzErr] = useState("");
+  const [tzSaved, setTzSaved] = useState(false);
+  async function changeTimezone(tz) {
+    setTzErr(""); setTzSaved(false); setTzBusy(true);
+    try { await onSaveTimezone(tz); setTzSaved(true); }
+    catch (ex) { setTzErr(ex.message || "Could not save time zone."); }
+    finally { setTzBusy(false); }
+  }
 
   // Colors: pre-fill from the practice's own values, else the Baybridge default
   // (so the owner edits from the current effective color). Re-sync when the
@@ -1984,8 +2008,24 @@ function BrandingScreen({ practice, logoUrl, onUpload, onRemove, onSaveColors })
   return (
     <div className="view">
       <div className="view-header">
-        <h1>Branding</h1>
-        <p className="view-sub">Your practice's logo and colors. Everyone on your team sees this branding throughout the app; a practice with no logo shows the Baybridge default.</p>
+        <h1>Settings</h1>
+        <p className="view-sub">Practice-wide settings — branding and time zone. Everyone on your team sees the branding; a practice with no logo shows the Baybridge default.</p>
+      </div>
+
+      <div className="panel">
+        <div className="panel-header"><h2>Time zone</h2></div>
+        <p className="brand-logo-hint" style={{ margin: "0 0 10px" }}>
+          Sets the practice's own "today" — check dates, order/receipt dates, and overdue flags all use this. Get it right before your team starts checking stock in.
+        </p>
+        <div className="brand-color-actions">
+          <select className="select" value={currentTz} disabled={tzBusy}
+            onChange={(e) => changeTimezone(e.target.value)} style={{ minWidth: 240 }}>
+            {TIMEZONES.map(([tz, label]) => <option key={tz} value={tz}>{label}</option>)}
+          </select>
+          {tzBusy && <span className="brand-logo-hint" style={{ margin: 0 }}>Saving…</span>}
+          {tzSaved && !tzBusy && <span className="brand-saved">Saved</span>}
+        </div>
+        {tzErr && <div className="warn-line" style={{ marginTop: 10 }}>{tzErr}</div>}
       </div>
 
       <div className="panel">
@@ -2697,6 +2737,11 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
     await onPracticeRefresh?.();
   }, [practice?.id, onPracticeRefresh]);
 
+  const handleSaveTimezone = useCallback(async (tz) => {
+    await savePracticeTimezone(practice.id, tz);
+    await onPracticeRefresh?.();
+  }, [practice?.id, onPracticeRefresh]);
+
   const handleAddDistributor = useCallback(async (fields) => {
     const name = (fields?.name || "").trim();
     if (!name) return { error: "Enter a distributor name." };
@@ -2963,8 +3008,8 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
           {view === "transfers" && (
             <TransfersView items={itemList} transfers={transfers} onUpdate={handleUpdateTransfer} />
           )}
-          {view === "branding" && (profile?.role === "owner" || profile?.role === "admin") && (
-            <BrandingScreen practice={practice} logoUrl={headerLogo} onUpload={handleUploadLogo} onRemove={handleRemoveLogo} onSaveColors={handleSaveColors} />
+          {view === "settings" && (profile?.role === "owner" || profile?.role === "admin") && (
+            <SettingsScreen practice={practice} logoUrl={headerLogo} onUpload={handleUploadLogo} onRemove={handleRemoveLogo} onSaveColors={handleSaveColors} onSaveTimezone={handleSaveTimezone} />
           )}
         </main>
       </div>

@@ -63,6 +63,14 @@ export async function signedLogoUrl(path, expiresIn = 3600) {
   return data?.signedUrl || null;
 }
 
+// Save the practice's timezone (an IANA name, e.g. "America/Chicago"). Drives
+// practice_today() and every displayed date. Gated to owner/admin by the same
+// practices UPDATE policy as colors/logo.
+export async function savePracticeTimezone(practiceId, timezone) {
+  const { error } = await supabase.from("practices").update({ timezone }).eq("id", practiceId);
+  if (error) throw error;
+}
+
 // Save the practice's brand colors. Pass hex strings to customize, or null to
 // clear a column back to the Baybridge platform default. The practices UPDATE
 // policy gates this to owner/admin (same as the logo pointer).
