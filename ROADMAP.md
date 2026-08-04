@@ -42,9 +42,30 @@ planning starts.
 
 ## Version 4 and beyond
 
-Broader operational features beyond supply chain management. Scope intentionally open
-— to be defined as V1–V3 prove out and real practice usage shows what's actually
-needed next, rather than guessing now.
+Broader operational features beyond supply chain management. Scope stays open — to
+be shaped by what real V1–V3 usage shows is actually needed, not guessed now — but
+`docs/PRODUCT_VISION.md` gives it more concrete direction than "open" alone, folded
+in here so it isn't lost. Two distinct thrusts sit under this heading:
+
+**Operational intelligence** (PRODUCT_VISION "Version 4") — extend the platform from
+supplies into the practice's wider operations:
+- Equipment management and maintenance tracking
+- Task management
+- Supply forecasting and inventory optimization
+- Location performance, practice benchmarks, and operational reporting
+
+**AI operations assistant** (PRODUCT_VISION "Version 5") — an intelligence layer on
+top of the structured, tenant-isolated data the earlier versions build. It assists,
+it never removes user control:
+- Predict inventory shortages; recommend transfers; forecast purchasing and budgets
+- Vendor recommendations and operational insights
+- Workflow automation, natural-language search, and document/invoice processing
+
+Both are deliberately later-phase: they depend on the foundation (structured data,
+audit trail, cost history) being in place first. See
+[`docs/PRODUCT_ROADMAP.md`](docs/PRODUCT_ROADMAP.md) for the customer-value framing
+(these are Phases 4–5 there) and [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md)
+for the full module list, including the mobile strategy.
 
 ## Enabled by, but not itself a version
 

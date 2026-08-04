@@ -12,6 +12,7 @@ existing records — those live as individual files in
 | 0003 | Location identity boundary (DB id-keyed, UI name-keyed) | [`decisions/0003-location-identity-boundary.md`](decisions/0003-location-identity-boundary.md) |
 | 0004 | Cross-location rebalancing (design brief) | [`decisions/0004-cross-location-rebalancing.md`](decisions/0004-cross-location-rebalancing.md) |
 | 0005 | Branding settings screen (design brief) | [`decisions/0005-branding-settings-screen.md`](decisions/0005-branding-settings-screen.md) |
+| 0006 | Role model: deferred, not resolved | [`decisions/0006-role-model-deferred.md`](decisions/0006-role-model-deferred.md) |
 
 > Note: numbering starts at `0002` (there is no `0001` ADR in the repo). Several
 > significant decisions are also captured **in migration headers** rather than as
