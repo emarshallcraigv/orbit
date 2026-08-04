@@ -29,10 +29,13 @@ function numOrNull(v) {
 }
 
 function rowToItem(row, locIdToName) {
+  // cabinets is keyed by location NAME -> the managed label (via cabinet_id ->
+  // location_cabinets.label). Display code reads the label; the item form works
+  // with cabinet ids resolved from these labels + the location's label list.
   const cabinets = {};
   for (const c of row.item_cabinets || []) {
     const name = locIdToName[c.location_id];
-    if (name) cabinets[name] = c.cabinet ?? "";
+    if (name) cabinets[name] = c.cabinet?.label ?? "";
   }
   return {
     id: row.id,
@@ -48,13 +51,16 @@ function rowToItem(row, locIdToName) {
   };
 }
 
-// Replace an item's cabinet rows from a name-keyed map (only non-empty ones).
-async function writeCabinets(itemId, cabinetsByName, nameToId) {
+// Replace an item's cabinet rows from a name-keyed map of cabinet IDS (only the
+// non-empty ones). Writes item_cabinets.cabinet_id (the managed label). Ids come
+// from the item form's per-location dropdowns, so they always belong to the
+// right location — no free text, no implicit label creation.
+async function writeCabinetIds(itemId, cabinetIdsByName, nameToId) {
   const { error: delErr } = await supabase.from("item_cabinets").delete().eq("item_id", itemId);
   if (delErr) throw delErr;
-  const rows = Object.entries(cabinetsByName || {})
-    .filter(([name, cab]) => nameToId[name] && cab != null && String(cab).trim() !== "")
-    .map(([name, cab]) => ({ item_id: itemId, location_id: nameToId[name], cabinet: String(cab) }));
+  const rows = Object.entries(cabinetIdsByName || {})
+    .filter(([name, cabId]) => nameToId[name] && cabId)
+    .map(([name, cabId]) => ({ item_id: itemId, location_id: nameToId[name], cabinet_id: cabId }));
   if (rows.length) {
     const { error: insErr } = await supabase.from("item_cabinets").insert(rows);
     if (insErr) throw insErr;
@@ -65,7 +71,7 @@ export async function fetchItems(practiceId, locations) {
   const locIdToName = Object.fromEntries(locations.map((l) => [l.id, l.name]));
   const { data, error } = await supabase
     .from("items")
-    .select("id, name, description, tracking_type, unit, threshold, threshold_desc, active, estimated_unit_cost, category_id, item_cabinets(location_id, cabinet)")
+    .select("id, name, description, tracking_type, unit, threshold, threshold_desc, active, estimated_unit_cost, category_id, item_cabinets(location_id, cabinet_id, cabinet:location_cabinets(label))")
     .eq("practice_id", practiceId)
     .order("name", { ascending: true });
   if (error) throw error;
@@ -90,7 +96,7 @@ export async function createItem(practiceId, itemData, locations) {
     .select("id")
     .single();
   if (error) throw error;
-  await writeCabinets(data.id, itemData.cabinets, nameToId);
+  await writeCabinetIds(data.id, itemData.cabinetIds, nameToId);
   return data.id;
 }
 
@@ -109,7 +115,7 @@ export async function updateItem(id, patch, locations) {
     const { error } = await supabase.from("items").update(fields).eq("id", id);
     if (error) throw error;
   }
-  if ("cabinets" in patch) await writeCabinets(id, patch.cabinets, nameToId);
+  if ("cabinetIds" in patch) await writeCabinetIds(id, patch.cabinetIds, nameToId);
 }
 
 export async function deleteItem(id) {

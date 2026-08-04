@@ -8,6 +8,7 @@ import { fetchDistributors, createDistributor, updateDistributor, deleteDistribu
 import { fetchShipments, createShipment, updateShipmentSplit, receiveShipment } from "./lib/shipments";
 import { fetchTransfers, confirmTransfer } from "./lib/transfers";
 import { fetchCategories, createCategory, renameCategory, deleteCategory, saveCategoryOrder, nameTaken as categoryNameTaken } from "./lib/categories";
+import { fetchLocationCabinets, addCabinet, renameCabinet, deleteCabinet, copyCabinets, cabinetLabelTaken } from "./lib/locationCabinets";
 import { fetchQueue, flagQueueLocation, updateQueueFields, setQueueLocations, orderQueueEntry, practiceToday } from "./lib/queue";
 import { fetchChecks, saveCheck } from "./lib/checks";
 import { rankHitlist, daysBetween } from "./lib/hitlist";
@@ -378,7 +379,7 @@ function ItemRow({ item, check, location, onSave }) {
       <div className="item-row">
         <div className="item-main">
           <div className="item-name">{item.name}</div>
-          <div className="item-meta">Cabinet {item.cabinets[location]} · threshold {item.threshold}{item.unit ? " · " + item.unit : ""}</div>
+          <div className="item-meta">{item.cabinets[location] || "No cabinet"} · threshold {item.threshold}{item.unit ? " · " + item.unit : ""}</div>
         </div>
         <input
           className="qty-input"
@@ -405,7 +406,7 @@ function ItemRow({ item, check, location, onSave }) {
     <div className="item-row">
       <div className="item-main">
         <div className="item-name">{item.name}</div>
-        <div className="item-meta">Cabinet {item.cabinets[location]}{check && check.date ? " · last checked " + fmtDate(check.date) : ""}</div>
+        <div className="item-meta">{item.cabinets[location] || "No cabinet"}{check && check.date ? " · last checked " + fmtDate(check.date) : ""}</div>
       </div>
       <div className="status-toggle">
         {["Good", "Low", "Need to Order"].map((s) => (
@@ -428,7 +429,7 @@ function CheckIn({ items, checks, activeLocation, setActiveLocation, onSaveCheck
   const [cabinet, setCabinet] = useState("");
 
   const cabinets = useMemo(() => {
-    const s = new Set(items.map((i) => i.cabinets[activeLocation]));
+    const s = new Set(items.map((i) => i.cabinets[activeLocation]).filter(Boolean));
     return Array.from(s).sort((a, b) => (isNaN(a) || isNaN(b) ? String(a).localeCompare(String(b)) : Number(a) - Number(b)));
   }, [items, activeLocation]);
 
@@ -460,7 +461,7 @@ function CheckIn({ items, checks, activeLocation, setActiveLocation, onSaveCheck
           <input className="text-input" placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <select className="select" value={cabinet} onChange={(e) => setCabinet(e.target.value)}>
             <option value="">All cabinets</option>
-            {cabinets.map((c) => <option key={c} value={c}>Cabinet {c}</option>)}
+            {cabinets.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
@@ -469,7 +470,7 @@ function CheckIn({ items, checks, activeLocation, setActiveLocation, onSaveCheck
         ) : (
           Object.keys(grouped).sort((a,b)=> (isNaN(a)||isNaN(b)? String(a).localeCompare(String(b)) : Number(a)-Number(b))).map((cab) => (
             <div key={cab} className="cabinet-group">
-              <div className="cabinet-label">Cabinet {cab}</div>
+              <div className="cabinet-label">{cab || "No cabinet"}</div>
               {grouped[cab].map((item) => (
                 <ItemRow
                   key={item.id}
@@ -1288,6 +1289,97 @@ function LocationSetup({ practiceName, onAdd, onSignOut, error }) {
   );
 }
 
+// Per-location managed cabinet/storage labels (0015). Add/rename/delete this
+// location's own labels + copy the list to another location. Item assignment
+// (in the item form) picks strictly from these — nothing is created implicitly.
+function CabinetsEditor({ location, cabinets, otherLocations, onAdd, onRename, onDelete, onCopy }) {
+  const [newLabel, setNewLabel] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const [copyTo, setCopyTo] = useState("");
+  const [copyMsg, setCopyMsg] = useState("");
+
+  async function add(e) {
+    e.preventDefault();
+    setErr("");
+    setBusy(true);
+    const res = await onAdd(location.id, newLabel);
+    setBusy(false);
+    if (res && res.error) setErr(res.error);
+    else setNewLabel("");
+  }
+  async function saveRename(id) {
+    const res = await onRename(id, location.id, editValue);
+    if (res && res.error) { setErr(res.error); return; }
+    setErr(""); setEditingId(null);
+  }
+  async function remove(id) {
+    setErr("");
+    const res = await onDelete(id);
+    if (res && res.error) setErr(res.error);
+  }
+  async function copy() {
+    if (!copyTo) return;
+    setCopyMsg(""); setErr(""); setBusy(true);
+    const res = await onCopy(location.id, copyTo);
+    setBusy(false);
+    if (res && res.error) { setErr(res.error); return; }
+    const name = (otherLocations.find((l) => l.id === copyTo) || {}).name || "that location";
+    setCopyMsg(res.count === 0 ? `${name} already had all of these.` : `Added ${res.count} to ${name}.`);
+    setCopyTo("");
+  }
+
+  return (
+    <div className="addr-editor">
+      <div className="addr-section-label">Cabinets at {location.name}</div>
+      <form onSubmit={add} className="cab-add">
+        <input className="text-input" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="e.g. Cabinet 3, Top shelf, Fridge" />
+        <button className="btn btn-primary btn-tiny" type="submit" disabled={busy || !newLabel.trim()}>Add</button>
+      </form>
+
+      {cabinets.length === 0 ? (
+        <div className="empty-state" style={{ padding: "10px 4px", textAlign: "left" }}>No cabinets defined for this location yet.</div>
+      ) : (
+        <div className="cab-list">
+          {cabinets.map((c) => (
+            <div className="cab-row" key={c.id}>
+              {editingId === c.id ? (
+                <>
+                  <input className="text-input" value={editValue} onChange={(e) => setEditValue(e.target.value)} autoFocus />
+                  <button className="btn btn-primary btn-tiny" onClick={() => saveRename(c.id)}>Save</button>
+                  <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(null); setErr(""); }}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <span className="cab-label">{c.label}</span>
+                  <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(c.id); setEditValue(c.label); setErr(""); }}>Rename</button>
+                  <button className="btn btn-danger btn-tiny" onClick={() => remove(c.id)}>Delete</button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {otherLocations.length > 0 && cabinets.length > 0 && (
+        <div className="cab-copy">
+          <span>Copy this list to</span>
+          <select className="select" value={copyTo} onChange={(e) => { setCopyTo(e.target.value); setCopyMsg(""); }}>
+            <option value="">Select a location…</option>
+            {otherLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+          <button className="btn btn-secondary btn-tiny" disabled={busy || !copyTo} onClick={copy}>Copy</button>
+          {copyMsg && <span className="brand-saved">{copyMsg}</span>}
+        </div>
+      )}
+
+      {err && <div className="warn-line" style={{ marginTop: 10 }}>{err}</div>}
+    </div>
+  );
+}
+
 const ADDRESS_FIELDS = [
   { key: "line1", label: "Street line 1", wide: true },
   { key: "line2", label: "Street line 2 (suite, optional)", wide: true },
@@ -1368,7 +1460,8 @@ function AddressEditor({ location, onSave, onCancel }) {
   );
 }
 
-function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onSaveAddresses }) {
+function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onSaveAddresses,
+  cabinetsByLoc, onAddCabinet, onRenameCabinet, onDeleteCabinet, onCopyCabinets }) {
   const [newName, setNewName] = useState("");
   const [addErr, setAddErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1376,6 +1469,7 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
   const [editValue, setEditValue] = useState("");
   const [confirmId, setConfirmId] = useState(null); // id pending delete confirmation
   const [addressId, setAddressId] = useState(null); // id whose address editor is open
+  const [cabinetsId, setCabinetsId] = useState(null); // id whose cabinets editor is open
   const [rowErr, setRowErr] = useState({}); // id -> message
 
   const addrSummary = (a) => (a ? [a.line1, a.city, a.state].filter(Boolean).join(", ") : "");
@@ -1474,7 +1568,8 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
                   <div className="manage-actions">
                     <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
                     <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === locations.length - 1} aria-label="Move down">↓</button>
-                    <button className={"btn btn-tiny " + (addressId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => setAddressId(addressId === loc.id ? null : loc.id)}>Address</button>
+                    <button className={"btn btn-tiny " + (addressId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => { setAddressId(addressId === loc.id ? null : loc.id); setCabinetsId(null); }}>Address</button>
+                    <button className={"btn btn-tiny " + (cabinetsId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => { setCabinetsId(cabinetsId === loc.id ? null : loc.id); setAddressId(null); }}>Cabinets</button>
                     <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(loc.id); setEditValue(loc.name); setError(loc.id, ""); }}>Rename</button>
                     <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(loc.id); setError(loc.id, ""); }} disabled={locations.length <= 1}>Delete</button>
                   </div>
@@ -1486,6 +1581,17 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
                 location={loc}
                 onCancel={() => setAddressId(null)}
                 onSave={async (physical, billing) => { await onSaveAddresses(loc.id, physical, billing); setAddressId(null); }}
+              />
+            )}
+            {cabinetsId === loc.id && (
+              <CabinetsEditor
+                location={loc}
+                cabinets={cabinetsByLoc[loc.name] || []}
+                otherLocations={locations.filter((l) => l.id !== loc.id)}
+                onAdd={onAddCabinet}
+                onRename={onRenameCabinet}
+                onDelete={onDeleteCabinet}
+                onCopy={onCopyCabinets}
               />
             )}
             </div>
@@ -1607,25 +1713,37 @@ function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder })
 }
 
 /* ============================== MANAGE ITEMS ============================== */
-function CabinetInputs({ cabinets, onChange, locations }) {
+// Per-location cabinet assignment: a strict dropdown of that location's own
+// defined labels (from the managed list). No free text, no implicit creation —
+// if a location has no labels, it points to the Locations screen.
+function CabinetInputs({ cabinetIds, onChange, locations, cabinetsByLoc }) {
   return (
     <div className="form-row">
-      {locations.map((loc) => (
-        <div className="form-field" key={loc}>
-          <label>{loc} cabinet</label>
-          <input className="text-input" value={cabinets[loc] || ""} onChange={(e) => onChange({ ...cabinets, [loc]: e.target.value })} placeholder="e.g. 3" />
-        </div>
-      ))}
+      {locations.map((loc) => {
+        const opts = cabinetsByLoc[loc] || [];
+        return (
+          <div className="form-field" key={loc}>
+            <label>{loc} cabinet</label>
+            {opts.length ? (
+              <select className="select" value={cabinetIds[loc] || ""} onChange={(e) => onChange({ ...cabinetIds, [loc]: e.target.value })}>
+                <option value="">— None —</option>
+                {opts.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            ) : (
+              <div className="form-field-note">No cabinets for {loc} yet — add them under Locations.</div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function AddItemForm({ onAdd, locations, categories }) {
+function AddItemForm({ onAdd, locations, categories, cabinetsByLoc }) {
   const blankMap = () => Object.fromEntries(locations.map((l) => [l, ""]));
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
-  const [cabinets, setCabinets] = useState(blankMap);
-  const [sameCabinet, setSameCabinet] = useState(true);
+  const [cabinetIds, setCabinetIds] = useState(blankMap);
   const [type, setType] = useState("Good/Low");
   const [unit, setUnit] = useState("");
   const [threshold, setThreshold] = useState("");
@@ -1634,11 +1752,9 @@ function AddItemForm({ onAdd, locations, categories }) {
   const [qty, setQty] = useState(blankMap);
   const [open, setOpen] = useState(false);
 
-  const setAllCabinets = (v) => setCabinets(Object.fromEntries(locations.map((l) => [l, v])));
-
   const reset = () => {
-    setName(""); setDesc(""); setCabinets(blankMap());
-    setSameCabinet(true); setType("Good/Low"); setUnit(""); setThreshold("");
+    setName(""); setDesc(""); setCabinetIds(blankMap());
+    setType("Good/Low"); setUnit(""); setThreshold("");
     setCategoryId(""); setCost(""); setQty(blankMap());
   };
 
@@ -1659,28 +1775,7 @@ function AddItemForm({ onAdd, locations, categories }) {
         </div>
       </div>
 
-      <div className="form-row">
-        <label className="checkbox-line">
-          <input type="checkbox" checked={sameCabinet} onChange={(e) => {
-            setSameCabinet(e.target.checked);
-            if (e.target.checked) setAllCabinets(cabinets[locations[0]] || "");
-          }} />
-          Same cabinet number at every location
-        </label>
-      </div>
-
-      {sameCabinet ? (
-        <div className="form-row">
-          <div className="form-field">
-            <label>Cabinet (all locations)</label>
-            <input className="text-input" value={cabinets[locations[0]] || ""}
-              onChange={(e) => setAllCabinets(e.target.value)}
-              placeholder="e.g. 3" />
-          </div>
-        </div>
-      ) : (
-        <CabinetInputs cabinets={cabinets} onChange={setCabinets} locations={locations} />
-      )}
+      <CabinetInputs cabinetIds={cabinetIds} onChange={setCabinetIds} locations={locations} cabinetsByLoc={cabinetsByLoc} />
 
       <div className="form-row">
         <div className="form-field">
@@ -1738,7 +1833,7 @@ function AddItemForm({ onAdd, locations, categories }) {
         <button className="btn btn-primary" disabled={!name}
           onClick={() => {
             onAdd(
-              { name: desc ? name + " - " + desc : name, item: name, desc, cabinets, type,
+              { name: desc ? name + " - " + desc : name, item: name, desc, cabinetIds, type,
                 unit, threshold: type === "Quantity" ? Number(threshold) || 0 : null, thresholdDesc: "",
                 categoryId, estimatedUnitCost: cost },
               type === "Quantity" ? qty : null
@@ -1932,14 +2027,14 @@ function BrandingScreen({ practice, logoUrl, onUpload, onRemove, onSaveColors })
 // downloadable template, and a full validate-before-commit preview. The parse/
 // validate logic and the atomic RPC do the real work (importItems + items.js);
 // this is the flow around them.
-function ImportItemsModal({ onClose, onImport, existingItems, categories }) {
+function ImportItemsModal({ onClose, onImport, existingItems, categories, cabinetsByLoc, locationNames }) {
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // { count } on success, { error } on failure
 
-  const ctx = useMemo(() => ({ existingItems, categories }), [existingItems, categories]);
+  const ctx = useMemo(() => ({ existingItems, categories, cabinetsByLoc, locationNames }), [existingItems, categories, cabinetsByLoc, locationNames]);
 
   function runParse(text, name) {
     setCsvText(text);
@@ -2076,7 +2171,7 @@ function ImportItemsModal({ onClose, onImport, existingItems, categories }) {
   );
 }
 
-function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations, categories }) {
+function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations, categories, cabinetsByLoc }) {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -2097,7 +2192,7 @@ function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations
           <h2>Add items</h2>
           <button className="btn btn-secondary btn-tiny" onClick={() => setImportOpen(true)}>Import CSV</button>
         </div>
-        <AddItemForm onAdd={onAdd} locations={locations} categories={categories} />
+        <AddItemForm onAdd={onAdd} locations={locations} categories={categories} cabinetsByLoc={cabinetsByLoc} />
       </div>
 
       {importOpen && (
@@ -2106,6 +2201,8 @@ function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations
           onImport={onBulkImport}
           existingItems={items}
           categories={categories}
+          cabinetsByLoc={cabinetsByLoc}
+          locationNames={locations}
         />
       )}
 
@@ -2119,13 +2216,13 @@ function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations
           {filtered.map((item) => (
             <div className="manage-row" key={item.id}>
               {editingId === item.id ? (
-                <EditItemInline item={item} onSave={(patch) => { onUpdate(item.id, patch); setEditingId(null); }} onCancel={() => setEditingId(null)} locations={locations} categories={categories} />
+                <EditItemInline item={item} onSave={(patch) => { onUpdate(item.id, patch); setEditingId(null); }} onCancel={() => setEditingId(null)} locations={locations} categories={categories} cabinetsByLoc={cabinetsByLoc} />
               ) : (
                 <>
                   <div className="manage-main">
                     <div className="flag-name">{item.name}</div>
                     <div className="flag-meta">
-                      {locations.map((loc) => loc + " Cab " + (item.cabinets[loc] || "—")).join("  ·  ")}
+                      {locations.map((loc) => loc + ": " + (item.cabinets[loc] || "—")).join("  ·  ")}
                     </div>
                     <div className="flag-meta muted">
                       {item.categoryId && catById[item.categoryId] ? catById[item.categoryId] + " · " : ""}
@@ -2155,17 +2252,27 @@ function ManageItems({ items, onAdd, onUpdate, onDelete, onBulkImport, locations
   );
 }
 
-function EditItemInline({ item, onSave, onCancel, locations, categories }) {
+function EditItemInline({ item, onSave, onCancel, locations, categories, cabinetsByLoc }) {
   const [type, setType] = useState(item.type);
   const [threshold, setThreshold] = useState(item.threshold ?? "");
   const [unit, setUnit] = useState(item.unit || "");
   const [categoryId, setCategoryId] = useState(item.categoryId || "");
   const [cost, setCost] = useState(item.estimatedUnitCost ?? "");
-  const [cabinets, setCabinets] = useState({ ...item.cabinets });
+  // The item stores cabinet LABELS per location; resolve each to that location's
+  // label id for the dropdowns (labels are unique per location).
+  const [cabinetIds, setCabinetIds] = useState(() => {
+    const m = {};
+    for (const loc of locations) {
+      const label = item.cabinets[loc];
+      const opt = (cabinetsByLoc[loc] || []).find((c) => c.label === label);
+      m[loc] = opt ? opt.id : "";
+    }
+    return m;
+  });
 
   return (
     <div className="edit-inline">
-      <CabinetInputs cabinets={cabinets} onChange={setCabinets} locations={locations} />
+      <CabinetInputs cabinetIds={cabinetIds} onChange={setCabinetIds} locations={locations} cabinetsByLoc={cabinetsByLoc} />
       <div className="form-row">
         <div className="form-field">
           <label>Category</label>
@@ -2201,7 +2308,7 @@ function EditItemInline({ item, onSave, onCancel, locations, categories }) {
         )}
       </div>
       <div className="form-row">
-        <button className="btn btn-primary btn-tiny" onClick={() => onSave({ type, cabinets, threshold: type === "Quantity" ? Number(threshold) || 0 : null, unit, categoryId, estimatedUnitCost: cost })}>Save</button>
+        <button className="btn btn-primary btn-tiny" onClick={() => onSave({ type, cabinetIds, threshold: type === "Quantity" ? Number(threshold) || 0 : null, unit, categoryId, estimatedUnitCost: cost })}>Save</button>
         <button className="btn btn-secondary btn-tiny" onClick={onCancel}>Cancel</button>
       </div>
     </div>
@@ -2300,6 +2407,26 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
   useEffect(() => { reloadCategories(); }, [reloadCategories]);
   const categories = useMemo(() => categoryRows || [], [categoryRows]);
 
+  // Per-location cabinet labels (managed list, 0015). RLS scopes the select to
+  // the caller's locations. Grouped by location NAME for the item-form dropdowns
+  // and the Locations Cabinets editor.
+  const [cabinetRows, setCabinetRows] = useState(null);
+  const reloadCabinets = useCallback(async () => {
+    if (!practice?.id) return;
+    try { setCabinetRows(await fetchLocationCabinets()); }
+    catch (e) { console.error("Failed to load cabinets:", e.message); setCabinetRows([]); }
+  }, [practice?.id]);
+  useEffect(() => { reloadCabinets(); }, [reloadCabinets]);
+  const cabinetsByLoc = useMemo(() => {
+    const idToName = Object.fromEntries((locations || []).map((l) => [l.id, l.name]));
+    const m = {};
+    for (const c of cabinetRows || []) {
+      const name = idToName[c.location_id];
+      if (name) (m[name] = m[name] || []).push(c);
+    }
+    return m;
+  }, [cabinetRows, locations]);
+
   // Shipments (+ their per-location split) and transfers from Supabase. Both
   // reloads depend on `locations` so a rename re-translates them (per 0003).
   const [shipmentsData, setShipmentsData] = useState(null);
@@ -2351,7 +2478,7 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
   }, [practice?.id]);
 
   const ready = locations !== null && items !== null && distributorRows !== null
-    && shipmentsData !== null && transfersData !== null && categoryRows !== null
+    && shipmentsData !== null && transfersData !== null && categoryRows !== null && cabinetRows !== null
     && queueData !== null && checksData !== null;
 
   // Save a check-in to Supabase. counted_qty vs status is chosen by tracking type.
@@ -2648,6 +2775,32 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
     await reloadLocations();
   }, [reloadLocations]);
 
+  const handleAddCabinet = useCallback(async (locationId, label) => {
+    const trimmed = (label || "").trim();
+    if (!trimmed) return { error: "Enter a cabinet label." };
+    if (cabinetLabelTaken(cabinetRows || [], locationId, trimmed)) return { error: `"${trimmed}" already exists at this location.` };
+    try { await addCabinet(locationId, trimmed); await reloadCabinets(); return {}; }
+    catch (e) { return { error: /duplicate|unique/i.test(e.message || "") ? `"${trimmed}" already exists at this location.` : (e.message || "Could not add cabinet.") }; }
+  }, [cabinetRows, reloadCabinets]);
+
+  const handleRenameCabinet = useCallback(async (id, locationId, label) => {
+    const trimmed = (label || "").trim();
+    if (!trimmed) return { error: "Enter a cabinet label." };
+    if (cabinetLabelTaken(cabinetRows || [], locationId, trimmed, id)) return { error: `"${trimmed}" already exists at this location.` };
+    try { await renameCabinet(id, trimmed); await reloadCabinets(); await reloadItems(); return {}; }
+    catch (e) { return { error: /duplicate|unique/i.test(e.message || "") ? `"${trimmed}" already exists at this location.` : (e.message || "Could not rename cabinet.") }; }
+  }, [cabinetRows, reloadCabinets, reloadItems]);
+
+  const handleDeleteCabinet = useCallback(async (id) => {
+    try { await deleteCabinet(id); await reloadCabinets(); await reloadItems(); return {}; }
+    catch (e) { return { error: e.message || "Could not delete cabinet." }; }
+  }, [reloadCabinets, reloadItems]);
+
+  const handleCopyCabinets = useCallback(async (fromLocationId, toLocationId) => {
+    try { const n = await copyCabinets(fromLocationId, toLocationId); await reloadCabinets(); return { count: n }; }
+    catch (e) { return { error: e.message || "Could not copy cabinets." }; }
+  }, [reloadCabinets]);
+
   // ---- Category CRUD (same shape as locations) --------------------------------
   const handleAddCategory = useCallback(async (name) => {
     const trimmed = (name || "").trim();
@@ -2755,11 +2908,13 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
             <InventoryView items={itemList} checks={checks} shipments={shipments} transfers={transfers} locations={locationNames} />
           )}
           {view === "items" && (
-            <ManageItems items={itemList} onAdd={handleAddItem} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} onBulkImport={handleBulkImport} locations={locationNames} categories={categories} />
+            <ManageItems items={itemList} onAdd={handleAddItem} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} onBulkImport={handleBulkImport} locations={locationNames} categories={categories} cabinetsByLoc={cabinetsByLoc} />
           )}
           {view === "locations" && (
             <LocationsManager locations={locations} onAdd={handleAddLocation} onRename={handleRenameLocation}
-              onDelete={handleDeleteLocation} onReorder={handleReorderLocations} onSaveAddresses={handleSaveLocationAddresses} />
+              onDelete={handleDeleteLocation} onReorder={handleReorderLocations} onSaveAddresses={handleSaveLocationAddresses}
+              cabinetsByLoc={cabinetsByLoc} onAddCabinet={handleAddCabinet} onRenameCabinet={handleRenameCabinet}
+              onDeleteCabinet={handleDeleteCabinet} onCopyCabinets={handleCopyCabinets} />
           )}
           {view === "categories" && (
             <CategoriesManager categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory}
@@ -3120,6 +3275,17 @@ const STYLES = `
 .addr-same input { width: 15px; height: 15px; }
 .addr-actions { display: flex; gap: 8px; margin-top: 12px; }
 @media (max-width: 560px) { .addr-grid { grid-template-columns: 1fr; } }
+
+/* Per-location cabinets editor */
+.cab-add { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.cab-add .text-input { flex: 1; min-width: 0; }
+.cab-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.cab-row { display: flex; align-items: center; gap: 8px; }
+.cab-row .text-input { flex: 1; min-width: 0; }
+.cab-label { flex: 1; font-size: 13px; font-weight: 600; color: var(--ink); }
+.cab-copy { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; }
+.cab-copy > span:first-child { font-size: 12.5px; color: var(--ink-soft); font-weight: 600; }
+.cab-copy .select { min-width: 150px; }
 .account-menu-signout:hover { background: var(--paper); }
 
 .loading-logo { height: 48px; width: 48px; object-fit: contain; margin-bottom: 4px; }
