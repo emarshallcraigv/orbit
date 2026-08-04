@@ -26,7 +26,8 @@ describe what is **actually built**; process docs codify how we work.
 - [`ADMIN_PLATFORM.md`](ADMIN_PLATFORM.md) — platform console (design only).
 
 ## Review output
-- [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) — project vs. this doc set; next three sprints.
+- [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) — project vs. this doc set (what's *missing*); next three sprints.
+- [`CONSISTENCY_REPORT.md`](CONSISTENCY_REPORT.md) — what's *built that contradicts* a documented principle (Critical/High/Medium/Low); reconciled with the gap analysis.
 
 ## Related (repo root)
 - [`../ROADMAP.md`](../ROADMAP.md) — the live, granular engineering sequence (V1–V4).

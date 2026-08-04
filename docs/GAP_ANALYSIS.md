@@ -5,6 +5,12 @@ Each area is **Already Complete / Partially Complete / Missing**, with a rough
 effort estimate (**S**mall / **M**edium / **L**arge). Then: the recommended next
 three engineering sprints.
 
+> Companion document: [`CONSISTENCY_REPORT.md`](CONSISTENCY_REPORT.md) covers the
+> *other* question — not what's missing, but what's **built that contradicts** a
+> documented principle (e.g. within-practice authorization, the timezone lock, dead
+> hardcoded location names). The two are reconciled; items shared with it are
+> cross-referenced there.
+>
 > Reflects the codebase at **15 migrations**. Several items below are currently
 > **on hold pending this review** (practice-lifecycle change, Sentry, test suite,
 > timestamp fixes) — they're classified honestly here, but nothing proceeds until
