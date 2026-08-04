@@ -1,6 +1,6 @@
 # Current Status
 
-**Last updated:** August 3, 2026
+**Last updated:** August 4, 2026
 
 > The operational heartbeat — a dashboard, not a journal. Read the whole company's
 > current state in under 60 seconds. This document gets **more concise over time,
@@ -20,7 +20,7 @@
 - **Estimated completion:** Several small/medium items remain; no fixed date yet.
 
 ## Current Priorities
-1. Fix timezone settability and gate destructive actions to owner/admin (from the consistency report)
+1. Gate destructive actions to owner/admin (H1, RLS policies in review) — timezone settability ✓ done; dead hardcoded location names ✓ removed
 2. Release the three held engineering items as one batch (practice lifecycle status, error monitoring, permanent test suite)
 3. Resume invitation UI → cross-location rebalancing → assignments/reminders/notifications
 4. Stand up staging/production separation ahead of real onboarding
@@ -39,7 +39,7 @@
 - **Production Incidents:** 0
 
 ## Currently In Progress
-- Timezone selector + destructive-action role-gating (consistency report follow-up)
+- Destructive-action role-gating (consistency report H1) — RLS policies drafted, in review before applying
 
 ## Next Planned Work
 See [`../ROADMAP.md`](../ROADMAP.md). Headline: held items released as a batch → invitation UI → rebalancing → notifications → staging/production split.
