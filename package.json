@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test tests/unit",
-    "test:integration": "node --env-file=.env.local --experimental-websocket --test tests/integration"
+    "test:integration": "node --env-file=.env.local --experimental-websocket --test-concurrency=1 --test tests/integration"
   },
   "dependencies": {
     "@sentry/react": "^10.69.0",

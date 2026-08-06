@@ -61,6 +61,11 @@ new dependency, matches the plain-Node convention above).
   and the `0017` status-dimension test live.
 - A test committed here is the durable form of "actually run and its output shown":
   the standard isn't weakened, it's made repeatable.
+- Integration tests run **serially** (`--test-concurrency=1`) because each does a
+  real Supabase signup, and a parallel burst can trip auth rate-limits (a flake, not
+  a real failure). Tests exercising an **operator-only** path (e.g. the lifecycle
+  status test since `0018`) need `SUPABASE_SERVICE_ROLE_KEY` and skip cleanly without
+  it — the key is never committed.
 
 ## Delivery cadence
 

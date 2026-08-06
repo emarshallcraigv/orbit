@@ -112,6 +112,15 @@ inventory, no other tenant, nothing else — and this is the *only* crack in the
 freeze; its scope must not drift. See ADR
 [`0007`](decisions/0007-practice-lifecycle.md).
 
+**Status is operator-only to write (`0018`).** Lifecycle transitions
+(suspend/offboard/reactivate) are an operator action, not a tenant one. A
+column-level privilege lockdown — table-wide `UPDATE` on `practices` is revoked
+from `authenticated` and re-granted on every column *except* `status` /
+`status_changed_at` (and the immutable `id` / `created_at`) — means a tenant
+owner/admin literally cannot write those columns, independent of the row policy.
+`service_role` (the operator) bypasses column grants, so operator-driven
+transitions are unaffected; branding/timezone edits still work.
+
 ## 7. What we send to third parties (Sentry)
 
 Error monitoring (Sentry) is wired to **transmit stack traces, not tenant data**:

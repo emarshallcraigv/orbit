@@ -31,7 +31,10 @@ does this user belong to."
   exception is a narrow read path exposing a frozen practice's `name` and `status`
   (those two fields only) to its own members, for the "practice suspended" screen.
   Offboarding is the normal removal path (data retained, members not orphaned);
-  hard-delete is an out-of-band operator last resort.
+  hard-delete is an out-of-band operator last resort. `status`/`status_changed_at`
+  are **operator-only to write** (`0018`): a column-level privilege lockdown removes
+  them from what `authenticated` may `UPDATE`, so tenants can't change their own
+  lifecycle state — only `service_role` (the operator) can.
 - **`profiles`** — one row per `auth.users` entry. `id` (FK → `auth.users`,
   cascade), `practice_id` (FK → `practices`, cascade), `email`, `display_name`,
   `role` (`owner` / `admin` / `staff`). Created automatically by the
