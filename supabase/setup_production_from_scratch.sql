@@ -2135,7 +2135,9 @@ begin
   end if;
 
   select practice_id, role into caller_practice, caller_role from profiles where id = auth.uid();
-  if caller_role not in ('owner', 'admin') then
+  -- Fail closed on NULL: `null not in (...)` is NULL (not TRUE), so a NULL role
+  -- would slip past a bare NOT IN. This is the one function that can grant owner.
+  if caller_role is null or caller_role not in ('owner', 'admin') then
     raise exception 'Only an owner or admin can change roles';
   end if;
 
