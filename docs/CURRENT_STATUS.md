@@ -1,6 +1,6 @@
 # Current Status
 
-**Last updated:** August 3, 2026
+**Last updated:** August 5, 2026
 
 > The operational heartbeat — a dashboard, not a journal. Read the whole company's
 > current state in under 60 seconds. This document gets **more concise over time,
@@ -12,19 +12,19 @@
 - **Stage:** Alpha
 - **Current Milestone:** Complete Version 1
 - **Current Objective:** Close consistency-report findings, then finish remaining V1 features
-- **Project Health:** 🟢 On Track — the consistency report's new High/Medium findings (H1 destructive-action gating, H2 timezone, M1 dead code) are all closed and verified; proceeding through the held V1 items. No blockers.
+- **Project Health:** 🟢 On Track — consistency-report findings (H1/H2/M1) closed, and all three held engineering items delivered (test suite, Sentry, lifecycle model). Paused at founder's direction; one founder action open (apply `0018`). No blockers.
 
 ## Current Milestone
 - **Objective:** Ship a feature-complete, real-customer-ready Version 1.
-- **Current focus:** Closing findings from the consistency report, then resuming held V1 feature work.
+- **Current focus:** Held items and consistency findings done; paused before the remaining V1 features (invitations, rebalancing, notifications) pending founder go-ahead.
 - **Estimated completion:** Several small/medium items remain; no fixed date yet.
 
 ## Current Priorities
-1. Release the three held engineering items as one batch (practice lifecycle status model — plan first; error monitoring / Sentry; permanent test suite)
-2. Resume invitation UI → cross-location rebalancing → assignments/reminders/notifications
-3. Stand up staging/production separation ahead of real onboarding
+_Paused at founder's direction — awaiting go-ahead before resuming feature work._
+1. Invitation UI → cross-location rebalancing → assignments/reminders/notifications
+2. Stand up staging/production separation ahead of real onboarding
 
-_Consistency-report findings closed: H1 destructive-action gating ✓ (migration `0016`, role-dimension isolation test passed), H2 timezone ✓, M1 dead code ✓._
+_Consistency-report findings closed: H1 destructive-action gating ✓ (`0016`), H2 timezone ✓, M1 dead code ✓. Held-items batch delivered: permanent test suite ✓, Sentry (dormant) ✓, practice-lifecycle model ✓ (`0017` applied & verified; `0018` status-lockdown approved, awaiting apply)._
 
 ## Founder Decisions Needed
 - **Pricing** — still undecided, still approaching relevance
@@ -36,11 +36,11 @@ _Consistency-report findings closed: H1 destructive-action gating ✓ (migration
 - **Practices:** 0 live (1 permanent internal test practice)
 - **Design Partners:** 0
 - **Active Users:** 0
-- **Core V1 Completion:** ~85%
+- **Core V1 Completion:** ~88%
 - **Production Incidents:** 0
 
 ## Currently In Progress
-- The three held engineering items as one batch — **doc updates up for review** (ADR `0007` practice-lifecycle, plus SECURITY/DATABASE_SCHEMA/ADMIN_PLATFORM/INTEGRATIONS/ENGINEERING_STANDARDS/README and the M3 reconciliations). On approval, implement in sequence: permanent test suite → Sentry (dormant until DSN) → practice-lifecycle model (`0017`, behind its own migration + status-dimension isolation test).
+- **Nothing in flight — paused at founder's direction.** The one open action is on the founder: apply migration `0018` (tenant status-write lockdown); on apply, a quick probe confirms the lockdown is live. Then held for go-ahead before any new feature work.
 
 ## Next Planned Work
 See [`../ROADMAP.md`](../ROADMAP.md). Headline: held items released as a batch → invitation UI → rebalancing → notifications → staging/production split.
