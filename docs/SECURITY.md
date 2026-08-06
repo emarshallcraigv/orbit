@@ -99,6 +99,26 @@ row-deletes happen during ordinary editing. This is the **interim** least-privil
 fix on the existing 3-role model; the full capabilities/permissions model stays
 deferred (ADR [`0006`](decisions/0006-role-model-deferred.md)).
 
+**Create/edit on Locations & Categories is owner/admin-only, too (`0020`).** The
+gating extends beyond delete: `INSERT` and `UPDATE` on `locations` and `categories`
+now carry the same `current_user_role() in ('owner','admin')` check. Staff see these
+screens read-only. (`location_cabinets` and `distributors` create/edit remain
+role-ungated for now — a tracked follow-up; their delete is already gated.)
+
+**Role changes are owner/admin-only and go through one DEFINER path (`0020`).**
+Two enforcement layers close a real escalation hole and hold an invariant:
+- A **column-level lockdown** — table-wide `UPDATE` on `profiles` is revoked from
+  `authenticated` and re-granted only on `display_name`/`email` — so a member can no
+  longer write their own `role` or `practice_id` (previously the `id = auth.uid()`
+  self-update policy let a staff user promote themselves to `owner`). Role/tenancy
+  are writable only by `SECURITY DEFINER` functions.
+- `set_member_role(profile_id, role)` is the sole tenant path: caller must be
+  owner/admin in the target's practice.
+- **"A practice must always keep at least one owner"** is enforced by a
+  `before update or delete on profiles` **trigger** — not the UI, and not just the
+  RPC — so it holds on every write path. The trigger skips when the parent practice
+  no longer exists, so a practice offboard/hard-delete cascade isn't blocked.
+
 ## 6. Practice lifecycle freeze (`0017`)
 
 A `suspended` or `offboarded` practice is **fully frozen**: `current_practice_id()`

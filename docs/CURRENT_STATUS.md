@@ -12,19 +12,19 @@
 - **Stage:** Alpha
 - **Current Milestone:** Complete Version 1
 - **Current Objective:** Close consistency-report findings, then finish remaining V1 features
-- **Project Health:** 🟢 On Track — consistency-report findings (H1/H2/M1) closed, and all three held engineering items delivered (test suite, Sentry, lifecycle model). Paused at founder's direction; one founder action open (apply `0018`). No blockers.
+- **Project Health:** 🟢 On Track — working through three founder-approved batches (small UI items; permission-tightening; a foundation table). No blockers; a few migrations await founder apply.
 
 ## Current Milestone
 - **Objective:** Ship a feature-complete, real-customer-ready Version 1.
-- **Current focus:** Held items and consistency findings done; paused before the remaining V1 features (invitations, rebalancing, notifications) pending founder go-ahead.
+- **Current focus:** Three batches — Batch 1 (UI polish + frozen-join guard), Batch 2 (owner/admin permission-tightening + role management), Batch 3 (`user_locations` foundation).
 - **Estimated completion:** Several small/medium items remain; no fixed date yet.
 
 ## Current Priorities
-_Paused at founder's direction — awaiting go-ahead before resuming feature work._
-1. Invitation UI → cross-location rebalancing → assignments/reminders/notifications
-2. Stand up staging/production separation ahead of real onboarding
+1. **Batch 2** — owner/admin gating on locations/categories create/edit + member role management + never-zero-owners (`0020`, RLS text under review, awaiting apply).
+2. **Batch 3** — `user_locations` foundation table (deliberately inert).
+3. Then: invitation UI → cross-location rebalancing → notifications → staging/production split.
 
-_Consistency-report findings closed: H1 destructive-action gating ✓ (`0016`), H2 timezone ✓, M1 dead code ✓. Held-items batch delivered: permanent test suite ✓, Sentry (dormant) ✓, practice-lifecycle model ✓ (`0017` applied & verified; `0018` status-lockdown approved, awaiting apply)._
+_Delivered: consistency findings H1/H2/M1 ✓; held-items batch (test suite, Sentry, lifecycle model) ✓; Batch 1 UI items ✓ (`9b052e8`). Migrations awaiting founder apply: `0018` (status lockdown), `0019` (frozen-join guard), `0020` (Batch 2)._
 
 ## Founder Decisions Needed
 - **Pricing** — still undecided, still approaching relevance
@@ -40,7 +40,9 @@ _Consistency-report findings closed: H1 destructive-action gating ✓ (`0016`), 
 - **Production Incidents:** 0
 
 ## Currently In Progress
-- **Nothing in flight — paused at founder's direction.** The one open action is on the founder: apply migration `0018` (tenant status-write lockdown); on apply, a quick probe confirms the lockdown is live. Then held for go-ahead before any new feature work.
+- **Batch 2** — code + docs + isolation test done and building clean; migration `0020` (RLS + role-management RPC + last-owner trigger + column lockdown) brought for review, awaiting founder apply. On apply: run `role_management` isolation test (staff blocked from create/edit + self-escalation, last-owner rule holds).
+- **Batch 3** — `user_locations` foundation table + ADR: next.
+- Founder apply queue: `0018`, `0019`, `0020`.
 
 ## Next Planned Work
 See [`../ROADMAP.md`](../ROADMAP.md). Headline: held items released as a batch → invitation UI → rebalancing → notifications → staging/production split.

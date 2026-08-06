@@ -40,6 +40,13 @@ real result, not an oversight.
 > ordinary editing). Verified by a **role-dimension isolation test** (two real
 > sessions in one practice: staff DELETE blocked on all five entities, owner DELETE
 > succeeds). This closes the sharpest edge — "a staff user can empty the catalog."
+> **Extended in `0020` (Batch 2):** gating now covers **create/edit** on locations
+> and categories (not delete-only), plus owner/admin-only **role management**
+> (`set_member_role`) — and a **real escalation hole was found and closed**: the
+> `id = auth.uid()` self-update policy previously let a staff user set their own
+> `role` to `owner`; a column-level lockdown now makes role/tenancy writable only by
+> `SECURITY DEFINER` functions, and a trigger guarantees ≥1 owner per practice.
+> Remaining ungated: `location_cabinets`/`distributors` create/edit (tracked).
 > **Still open, by design:** the full capabilities/permissions model
 > (read-only, clinical-staff, etc.) remains deferred — ADR
 > [`0006`](decisions/0006-role-model-deferred.md); the description below stands as

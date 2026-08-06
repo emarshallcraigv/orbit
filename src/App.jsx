@@ -5,6 +5,7 @@ import { parseCsv, buildPayload, templateCsv } from "./lib/importItems";
 import { uploadLogo, signedLogoUrl, removeLogo, saveColors, savePracticeTimezone, downloadLogoBlobUrl } from "./lib/branding";
 import { suggestColorsFromImageUrl } from "./lib/logoColors";
 import { fetchDistributors, createDistributor, updateDistributor, deleteDistributor } from "./lib/distributors";
+import { fetchMembers, setMemberRole } from "./lib/members";
 import { fetchShipments, createShipment, updateShipmentSplit, receiveShipment } from "./lib/shipments";
 import { fetchTransfers, confirmTransfer } from "./lib/transfers";
 import { fetchCategories, createCategory, renameCategory, deleteCategory, saveCategoryOrder, nameTaken as categoryNameTaken } from "./lib/categories";
@@ -1286,8 +1287,9 @@ function SideDrawer({ open, view, setView, onClose, pendingTransfers, role }) {
     { key: "categories", label: "Categories", icon: "▤" },
     { key: "distributors", label: "Distributors", icon: "☎" },
   ];
-  // Branding is owner/admin-only (RLS also enforces this on every write).
+  // Members + Branding are owner/admin-only (RLS also enforces this on every write).
   if (role === "owner" || role === "admin") {
+    items.push({ key: "members", label: "Members", icon: "⚇" });
     items.push({ key: "settings", label: "Settings", icon: "✎" });
   }
   items.push({ key: "help", label: "Help & support", icon: "?" });
@@ -1689,7 +1691,7 @@ function AddressEditor({ location, onSave, onCancel }) {
 }
 
 function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onSaveAddresses,
-  cabinetsByLoc, onAddCabinet, onRenameCabinet, onDeleteCabinet, onCopyCabinets, canDelete }) {
+  cabinetsByLoc, onAddCabinet, onRenameCabinet, onDeleteCabinet, onCopyCabinets, canManage }) {
   const [newName, setNewName] = useState("");
   const [addErr, setAddErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1741,17 +1743,19 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
         <p className="view-sub">Add, rename, reorder, or remove the offices this practice tracks supplies for. Names must be unique.</p>
       </div>
 
-      <div className="panel">
-        <div className="panel-header"><h2>Add a location</h2></div>
-        <form onSubmit={add} className="form-row" style={{ alignItems: "flex-end" }}>
-          <div className="form-field form-field-wide">
-            <label>Location name</label>
-            <input className="text-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Downtown" />
-          </div>
-          <button className="btn btn-primary" type="submit" disabled={busy || !newName.trim()}>{busy ? "Adding…" : "Add location"}</button>
-        </form>
-        {addErr && <div className="warn-line" style={{ marginTop: 10 }}>{addErr}</div>}
-      </div>
+      {canManage && (
+        <div className="panel">
+          <div className="panel-header"><h2>Add a location</h2></div>
+          <form onSubmit={add} className="form-row" style={{ alignItems: "flex-end" }}>
+            <div className="form-field form-field-wide">
+              <label>Location name</label>
+              <input className="text-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Downtown" />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={busy || !newName.trim()}>{busy ? "Adding…" : "Add location"}</button>
+          </form>
+          {addErr && <div className="warn-line" style={{ marginTop: 10 }}>{addErr}</div>}
+        </div>
+      )}
 
       <div className="panel">
         <div className="panel-header">
@@ -1793,14 +1797,16 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
                     )}
                     {rowErr[loc.id] && <div className="warn-line" style={{ marginTop: 6 }}>{rowErr[loc.id]}</div>}
                   </div>
-                  <div className="manage-actions">
-                    <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
-                    <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === locations.length - 1} aria-label="Move down">↓</button>
-                    <button className={"btn btn-tiny " + (addressId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => { setAddressId(addressId === loc.id ? null : loc.id); setCabinetsId(null); }}>Address</button>
-                    <button className={"btn btn-tiny " + (cabinetsId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => { setCabinetsId(cabinetsId === loc.id ? null : loc.id); setAddressId(null); }}>Cabinets</button>
-                    <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(loc.id); setEditValue(loc.name); setError(loc.id, ""); }}>Rename</button>
-                    {canDelete && <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(loc.id); setError(loc.id, ""); }} disabled={locations.length <= 1}>Delete</button>}
-                  </div>
+                  {canManage && (
+                    <div className="manage-actions">
+                      <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+                      <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === locations.length - 1} aria-label="Move down">↓</button>
+                      <button className={"btn btn-tiny " + (addressId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => { setAddressId(addressId === loc.id ? null : loc.id); setCabinetsId(null); }}>Address</button>
+                      <button className={"btn btn-tiny " + (cabinetsId === loc.id ? "btn-primary" : "btn-secondary")} onClick={() => { setCabinetsId(cabinetsId === loc.id ? null : loc.id); setAddressId(null); }}>Cabinets</button>
+                      <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(loc.id); setEditValue(loc.name); setError(loc.id, ""); }}>Rename</button>
+                      <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(loc.id); setError(loc.id, ""); }} disabled={locations.length <= 1}>Delete</button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1820,7 +1826,7 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
                 onRename={onRenameCabinet}
                 onDelete={onDeleteCabinet}
                 onCopy={onCopyCabinets}
-                canDelete={canDelete}
+                canDelete={canManage}
               />
             )}
             </div>
@@ -1832,7 +1838,7 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
 }
 
 /* ============================== CATEGORIES ============================== */
-function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder, canDelete }) {
+function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder, canManage }) {
   const [newName, setNewName] = useState("");
   const [addErr, setAddErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1877,17 +1883,19 @@ function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder, c
         <p className="view-sub">A fixed list to categorize items — so the same category can't drift into several spellings. Names must be unique.</p>
       </div>
 
-      <div className="panel">
-        <div className="panel-header"><h2>Add a category</h2></div>
-        <form onSubmit={add} className="form-row" style={{ alignItems: "flex-end" }}>
-          <div className="form-field form-field-wide">
-            <label>Category name</label>
-            <input className="text-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. PPE" />
-          </div>
-          <button className="btn btn-primary" type="submit" disabled={busy || !newName.trim()}>{busy ? "Adding…" : "Add category"}</button>
-        </form>
-        {addErr && <div className="warn-line" style={{ marginTop: 10 }}>{addErr}</div>}
-      </div>
+      {canManage && (
+        <div className="panel">
+          <div className="panel-header"><h2>Add a category</h2></div>
+          <form onSubmit={add} className="form-row" style={{ alignItems: "flex-end" }}>
+            <div className="form-field form-field-wide">
+              <label>Category name</label>
+              <input className="text-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. PPE" />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={busy || !newName.trim()}>{busy ? "Adding…" : "Add category"}</button>
+          </form>
+          {addErr && <div className="warn-line" style={{ marginTop: 10 }}>{addErr}</div>}
+        </div>
+      )}
 
       <div className="panel">
         <div className="panel-header">
@@ -1924,18 +1932,80 @@ function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder, c
                     <div className="flag-name">{cat.name}</div>
                     {rowErr[cat.id] && <div className="warn-line" style={{ marginTop: 6 }}>{rowErr[cat.id]}</div>}
                   </div>
-                  <div className="manage-actions">
-                    <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
-                    <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === categories.length - 1} aria-label="Move down">↓</button>
-                    <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(cat.id); setEditValue(cat.name); setError(cat.id, ""); }}>Rename</button>
-                    {canDelete && <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(cat.id); setError(cat.id, ""); }}>Delete</button>}
-                  </div>
+                  {canManage && (
+                    <div className="manage-actions">
+                      <button className="btn btn-secondary btn-tiny" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+                      <button className="btn btn-secondary btn-tiny" onClick={() => move(i, 1)} disabled={i === categories.length - 1} aria-label="Move down">↓</button>
+                      <button className="btn btn-secondary btn-tiny" onClick={() => { setEditingId(cat.id); setEditValue(cat.name); setError(cat.id, ""); }}>Rename</button>
+                      <button className="btn btn-danger btn-tiny" onClick={() => { setConfirmId(cat.id); setError(cat.id, ""); }}>Delete</button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
           ))}
           {categories.length === 0 && <div className="empty-state">No categories yet.</div>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== MEMBERS ============================== */
+function MembersScreen({ members, currentUserId, onChangeRole }) {
+  const [busyId, setBusyId] = useState(null);
+  const [rowErr, setRowErr] = useState({});
+  const ownerCount = members.filter((m) => m.role === "owner").length;
+
+  async function change(m, role) {
+    if (role === m.role) return;
+    setBusyId(m.id);
+    setRowErr((p) => ({ ...p, [m.id]: "" }));
+    const res = await onChangeRole(m.id, role);
+    setBusyId(null);
+    if (res && res.error) setRowErr((p) => ({ ...p, [m.id]: res.error }));
+  }
+
+  return (
+    <div className="view">
+      <div className="view-header">
+        <h1>Members</h1>
+        <p className="view-sub">Owners and admins can change a member's role. A practice must always keep at least one owner.</p>
+      </div>
+      <div className="panel">
+        <div className="panel-header">
+          <h2>Team</h2>
+          <span className="pill">{members.length}</span>
+        </div>
+        <div className="manage-list">
+          {members.map((m) => {
+            const isSoleOwner = m.role === "owner" && ownerCount <= 1;
+            return (
+              <div className="manage-row" key={m.id}>
+                <div className="manage-main">
+                  <div className="flag-name">
+                    {m.display_name || m.email || "Member"}
+                    {m.id === currentUserId && <span className="muted"> · you</span>}
+                  </div>
+                  {m.display_name && m.email && <div className="flag-meta">{m.email}</div>}
+                  {rowErr[m.id] && <div className="warn-line" style={{ marginTop: 6 }}>{rowErr[m.id]}</div>}
+                </div>
+                <div className="manage-actions">
+                  <select className="select" value={m.role} disabled={busyId === m.id || isSoleOwner}
+                    onChange={(e) => change(m, e.target.value)} aria-label={`Role for ${m.display_name || m.email || "member"}`}>
+                    {["owner", "admin", "staff"].map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+            );
+          })}
+          {members.length === 0 && <div className="empty-state">No members yet.</div>}
+        </div>
+        {members.some((m) => m.role === "owner" && ownerCount <= 1) && (
+          <div className="flag-meta muted" style={{ marginTop: 10 }}>
+            The last owner's role is locked — promote another member to owner first.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2654,6 +2724,29 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
   useEffect(() => { reloadDistributors(); }, [reloadDistributors]);
   const distributors = useMemo(() => (distributorRows || []).map((d) => d.name), [distributorRows]);
 
+  // Practice members (0020) — role management is owner/admin-only.
+  const [members, setMembers] = useState([]);
+  const reloadMembers = useCallback(async () => {
+    if (!practice?.id) return;
+    try {
+      setMembers(await fetchMembers(practice.id));
+    } catch (e) {
+      console.error("Failed to load members:", e.message);
+      setMembers([]);
+    }
+  }, [practice?.id]);
+  useEffect(() => { reloadMembers(); }, [reloadMembers]);
+
+  const handleChangeMemberRole = useCallback(async (profileId, role) => {
+    try {
+      await setMemberRole(profileId, role);
+      await reloadMembers();
+      return true;
+    } catch (e) {
+      return { error: e.message || "Couldn't change that member's role." };
+    }
+  }, [reloadMembers]);
+
   // Item categories (0008) — practice-scoped, flat list.
   const [categoryRows, setCategoryRows] = useState(null);
   const reloadCategories = useCallback(async () => {
@@ -3199,11 +3292,11 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
             <LocationsManager locations={locations} onAdd={handleAddLocation} onRename={handleRenameLocation}
               onDelete={handleDeleteLocation} onReorder={handleReorderLocations} onSaveAddresses={handleSaveLocationAddresses}
               cabinetsByLoc={cabinetsByLoc} onAddCabinet={handleAddCabinet} onRenameCabinet={handleRenameCabinet}
-              onDeleteCabinet={handleDeleteCabinet} onCopyCabinets={handleCopyCabinets} canDelete={canManage} />
+              onDeleteCabinet={handleDeleteCabinet} onCopyCabinets={handleCopyCabinets} canManage={canManage} />
           )}
           {view === "categories" && (
             <CategoriesManager categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory}
-              onDelete={handleDeleteCategory} onReorder={handleReorderCategories} canDelete={canManage} />
+              onDelete={handleDeleteCategory} onReorder={handleReorderCategories} canManage={canManage} />
           )}
           {view === "distributors" && (
             <DistributorsScreen distributorRows={distributorRows || []}
@@ -3214,6 +3307,9 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
           )}
           {view === "settings" && (profile?.role === "owner" || profile?.role === "admin") && (
             <SettingsScreen practice={practice} logoUrl={headerLogo} onUpload={handleUploadLogo} onRemove={handleRemoveLogo} onSaveColors={handleSaveColors} onSaveTimezone={handleSaveTimezone} />
+          )}
+          {view === "members" && (profile?.role === "owner" || profile?.role === "admin") && (
+            <MembersScreen members={members} currentUserId={profile?.id} onChangeRole={handleChangeMemberRole} />
           )}
           {view === "help" && <HelpScreen />}
         </main>

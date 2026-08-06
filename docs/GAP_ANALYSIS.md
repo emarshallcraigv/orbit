@@ -43,7 +43,7 @@ three engineering sprints.
 | Timestamp surfacing (inventory "last updated", queue ordered date) | 🟡 Partial | **S** | Dates exist + are mostly shown; inventory freshness + queue ordered date missing. Audit done; fix on hold. |
 | Cross-location rebalancing | 🟡 Partial (design done) | **M** | ADR `0004`; build pending. |
 | Assignments / reminders / notifications | ❌ Missing | **L** | Largest remaining V1 workstream; needs plan-first + shared detection fn. |
-| UI role-gating (owner/admin vs staff) | 🟡 Partial | **M** | RLS enforces DB; UI gating only partial. Role *model* (3-enum vs the vision's 6 roles / a permissions model) is **deliberately deferred** — ADR [`0006`](decisions/0006-role-model-deferred.md); this row is only about gating today's three roles in the UI. |
+| Role-gating (owner/admin vs staff) | 🟢 Substantially closed | **S** | Enforced at **RLS**, not just UI: delete (`0016`) + create/edit on locations/categories (`0020`), role management via `set_member_role` + column lockdown + last-owner trigger (`0020`). Remaining: `location_cabinets`/`distributors` create/edit still ungated (tracked). Role *model* (3-enum vs the vision's 6 / a permissions model) stays **deferred** — ADR [`0006`](decisions/0006-role-model-deferred.md). |
 
 ## Onboarding & growth
 

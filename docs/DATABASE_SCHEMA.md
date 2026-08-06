@@ -130,8 +130,18 @@ does this user belong to."
 - **Role-gated deletes (`0016`):** `DELETE` on the top-level managed entities
   (`locations`, `items`, `categories`, `distributors`, `location_cabinets`) is
   restricted to `owner`/`admin` — the role check is ANDed onto each policy's tenant
-  scope. `INSERT`/`UPDATE` and child/join-table deletes are unchanged. Interim fix;
-  full role model deferred (ADR [`0006`](decisions/0006-role-model-deferred.md)).
+  scope. Interim fix; full role model deferred (ADR
+  [`0006`](decisions/0006-role-model-deferred.md)).
+- **Role-gated create/edit (`0020`):** `INSERT`/`UPDATE` on `locations` and
+  `categories` are now `owner`/`admin`-only as well (same check ANDed on).
+- **Role management (`0020`):** `profiles.role` / `profiles.practice_id` are **not
+  tenant-writable** — table-wide `UPDATE` is revoked from `authenticated` and
+  re-granted only on `display_name`/`email`, so role/tenancy change only via
+  `SECURITY DEFINER` functions (onboarding RPCs, `set_member_role`). This closes a
+  self-escalation hole (the `id = auth.uid()` self-update policy previously allowed
+  writing one's own `role`). A `before update or delete on profiles` trigger
+  (`enforce_last_owner`) guarantees a practice always keeps ≥1 owner, on every write
+  path, skipping when the parent practice is already gone (cascade-safe).
 
 See also: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md),
 [`SECURITY.md`](SECURITY.md), and ADR
