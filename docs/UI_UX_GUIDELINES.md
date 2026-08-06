@@ -41,6 +41,25 @@ Add new glyphs to that component rather than importing a library.
   (`.btn-tiny`) don't override color. All interactive controls have hover/focus
   states; form controls have a themeable focus ring (`color-mix` on `--ink`).
 
+## Filtering lists
+
+Longer record lists (Ordering Queue, Shipments) use a consistent **FilterBar**: a
+row of labeled dropdowns that each default to an "All …" option, built from the
+`FilterSelect` / `FilterBar` components in `App.jsx`.
+
+- **Dropdowns for open-ended dimensions** (Location, Distributor) — options are
+  derived from what's actually present in the data, so a filter never offers a value
+  that matches nothing. **Chips** stay reserved for a small fixed set (order
+  status: All / Ordered / Received …).
+- A **"Clear filters"** button appears only when a filter is active.
+- The count pill reflects filtering — e.g. `1 of 4 pending` — and a filtered-empty
+  list says "No … match these filters," distinct from the truly-empty state.
+- The Queue additionally **groups pending items by distributor** with a per-group
+  select-all, so a whole distributor's order can be actioned together (bulk
+  "Mark as Ordered").
+
+Reuse `FilterBar`/`FilterSelect` rather than hand-rolling per-screen filters.
+
 ## Layout & interaction patterns
 
 - **Dashboard is a hitlist**, not a set of static cards: order / transfer / receive

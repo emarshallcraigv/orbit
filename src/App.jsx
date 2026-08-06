@@ -707,10 +707,41 @@ function ShipmentRow({ s, item, onUpdate, locations }) {
   );
 }
 
+/* Reusable filter control: a labeled dropdown that defaults to "All …". Used by
+   the Shipments and Queue lists so filtering looks and behaves the same
+   everywhere (see UI_UX_GUIDELINES.md → "Filtering lists"). */
+function FilterSelect({ label, allLabel, value, onChange, options }) {
+  return (
+    <label className="filter-select">
+      <span className="filter-label">{label}</span>
+      <select className="select" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{allLabel}</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function FilterBar({ children }) {
+  return <div className="filter-bar">{children}</div>;
+}
+
 function ShipmentsView({ items, shipments, distributors, onAdd, onUpdate, locations }) {
   const [filter, setFilter] = useState("All");
+  const [distFilter, setDistFilter] = useState("");
+  const [locFilter, setLocFilter] = useState("");
   const itemById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
-  const filtered = shipments.filter((s) => filter === "All" || s.status === filter).sort((a, b) => (b.dateOrdered || "").localeCompare(a.dateOrdered || ""));
+  // Distributor options come from what's actually on the shipments (plus the
+  // directory), so the filter never offers a value that can't match anything.
+  const distOptions = useMemo(
+    () => Array.from(new Set(shipments.map((s) => s.distributor).filter(Boolean))).sort(),
+    [shipments]
+  );
+  const filtered = shipments
+    .filter((s) => filter === "All" || s.status === filter)
+    .filter((s) => !distFilter || s.distributor === distFilter)
+    .filter((s) => !locFilter || (s.split && Number(s.split[locFilter]) > 0))
+    .sort((a, b) => (b.dateOrdered || "").localeCompare(a.dateOrdered || ""));
 
   return (
     <div className="view">
@@ -733,8 +764,15 @@ function ShipmentsView({ items, shipments, distributors, onAdd, onUpdate, locati
             ))}
           </div>
         </div>
+        <FilterBar>
+          <FilterSelect label="Location" allLabel="All locations" value={locFilter} onChange={setLocFilter} options={locations} />
+          <FilterSelect label="Distributor" allLabel="All distributors" value={distFilter} onChange={setDistFilter} options={distOptions} />
+          {(locFilter || distFilter || filter !== "All") && (
+            <button className="btn btn-secondary btn-tiny filter-clear" onClick={() => { setFilter("All"); setDistFilter(""); setLocFilter(""); }}>Clear filters</button>
+          )}
+        </FilterBar>
         {filtered.length === 0 ? (
-          <div className="empty-state">No shipments logged yet.</div>
+          <div className="empty-state">{shipments.length === 0 ? "No shipments logged yet." : "No shipments match these filters."}</div>
         ) : (
           <div className="ship-list">
             {filtered.map((s) => (
@@ -770,7 +808,7 @@ function LocationToggle({ locations, onChange, allLocations }) {
   );
 }
 
-function QueueRow({ q, item, distributors, onUpdate, locations }) {
+function QueueRow({ q, item, distributors, onUpdate, locations, selectable, selected, onToggleSelect }) {
   const [notes, setNotes] = useState(q.notes || "");
   const ready = q.distributor && Number(q.qtyToOrder) > 0;
 
@@ -783,9 +821,15 @@ function QueueRow({ q, item, distributors, onUpdate, locations }) {
   };
 
   return (
-    <div className="queue-row">
+    <div className={"queue-row" + (selected ? " queue-row-selected" : "")}>
       <div className="queue-main">
-        <div className="flag-name">{item ? item.name : q.itemId}</div>
+        <div className="flag-name">
+          {selectable && (
+            <input type="checkbox" className="queue-check" checked={!!selected}
+              onChange={() => onToggleSelect(q.id)} aria-label={`Select ${item ? item.name : q.itemId}`} />
+          )}
+          {item ? item.name : q.itemId}
+        </div>
         <div className="flag-meta">flagged {fmtDate(q.dateFlagged)}{q.dateOrdered ? " · ordered " + fmtDate(q.dateOrdered) : ""}</div>
         <div className="flag-meta muted">
           {q.locations.map((loc) => {
@@ -870,12 +914,43 @@ function AddToQueueForm({ items, onAdd, locations: allLocations }) {
   );
 }
 
-function QueueView({ items, queue, distributors, onUpdate, onManualAdd, locations }) {
+function QueueView({ items, queue, distributors, onUpdate, onManualAdd, onBulkOrder, locations }) {
   const itemById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
   const [showHistory, setShowHistory] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("All");
+  const [locFilter, setLocFilter] = useState("");
+  const [distFilter, setDistFilter] = useState("");
+  const [selected, setSelected] = useState(() => new Set());
 
-  const pending = queue.filter((q) => q.status === "Pending").sort((a, b) => (b.dateFlagged || "").localeCompare(a.dateFlagged || ""));
+  const pendingAll = useMemo(
+    () => queue.filter((q) => q.status === "Pending").sort((a, b) => (b.dateFlagged || "").localeCompare(a.dateFlagged || "")),
+    [queue]
+  );
+  const distOptions = useMemo(
+    () => Array.from(new Set(pendingAll.map((q) => q.distributor).filter(Boolean))).sort(),
+    [pendingAll]
+  );
+  const pending = pendingAll
+    .filter((q) => !locFilter || q.locations.includes(locFilter))
+    .filter((q) => !distFilter || q.distributor === distFilter);
+
+  // Group the filtered pending list by distributor so a whole distributor's order
+  // can be selected and marked at once; unassigned items sort last.
+  const groups = useMemo(() => {
+    const m = new Map();
+    pending.forEach((q) => { const k = q.distributor || ""; if (!m.has(k)) m.set(k, []); m.get(k).push(q); });
+    return [...m.entries()].sort((a, b) => (a[0] === "" ? 1 : b[0] === "" ? -1 : a[0].localeCompare(b[0])));
+  }, [pending]);
+
+  const toggleOne = (id) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleGroup = (entries) => setSelected((prev) => {
+    const n = new Set(prev);
+    const allSel = entries.every((q) => n.has(q.id));
+    entries.forEach((q) => (allSel ? n.delete(q.id) : n.add(q.id)));
+    return n;
+  });
+  const clearSel = () => setSelected(new Set());
+
   const history = queue.filter((q) => q.status !== "Pending")
     .filter((q) => historyFilter === "All" || q.status === historyFilter)
     .sort((a, b) => (b.dateFlagged || "").localeCompare(a.dateFlagged || ""));
@@ -889,18 +964,60 @@ function QueueView({ items, queue, distributors, onUpdate, onManualAdd, location
       <div className="panel">
         <div className="panel-header">
           <h2>Needs action</h2>
-          <span className="pill">{pending.length} pending</span>
+          <span className="pill">{pending.length !== pendingAll.length ? `${pending.length} of ${pendingAll.length}` : pending.length} pending</span>
         </div>
         <div style={{ marginBottom: 14 }}>
           <AddToQueueForm items={items} onAdd={onManualAdd} locations={locations} />
         </div>
-        {pending.length === 0 ? (
+        {pendingAll.length > 0 && (
+          <FilterBar>
+            <FilterSelect label="Location" allLabel="All locations" value={locFilter} onChange={setLocFilter} options={locations} />
+            <FilterSelect label="Distributor" allLabel="All distributors" value={distFilter} onChange={setDistFilter} options={distOptions} />
+            {(locFilter || distFilter) && (
+              <button className="btn btn-secondary btn-tiny filter-clear" onClick={() => { setLocFilter(""); setDistFilter(""); }}>Clear filters</button>
+            )}
+          </FilterBar>
+        )}
+        {pendingAll.length === 0 ? (
           <div className="empty-state">Nothing pending right now.</div>
+        ) : pending.length === 0 ? (
+          <div className="empty-state">No pending items match these filters.</div>
         ) : (
-          <div className="queue-list">
-            {pending.map((q) => (
-              <QueueRow key={q.id} q={q} item={itemById[q.itemId]} distributors={distributors} onUpdate={onUpdate} locations={locations} />
-            ))}
+          <div className="queue-groups">
+            {groups.map(([dist, entries]) => {
+              const allSel = entries.every((q) => selected.has(q.id));
+              return (
+                <div key={dist || "__none"} className="queue-group">
+                  <div className="queue-group-head">
+                    <label className="group-select">
+                      <input type="checkbox" className="queue-check" checked={allSel} onChange={() => toggleGroup(entries)}
+                        aria-label={`Select all from ${dist || "No distributor"}`} />
+                      <span className="group-name">{dist || "No distributor yet"}</span>
+                    </label>
+                    <span className="pill pill-quiet">{entries.length}</span>
+                  </div>
+                  <div className="queue-list">
+                    {entries.map((q) => (
+                      <QueueRow key={q.id} q={q} item={itemById[q.itemId]} distributors={distributors}
+                        onUpdate={onUpdate} locations={locations}
+                        selectable selected={selected.has(q.id)} onToggleSelect={toggleOne} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {selected.size > 0 && (
+          <div className="bulk-bar">
+            <span className="bulk-count">{selected.size} selected</span>
+            <span className="bulk-hint muted">Items with a distributor + quantity auto-log a shipment.</span>
+            <div className="bulk-actions">
+              <button className="btn btn-secondary btn-tiny" onClick={clearSel}>Clear</button>
+              <button className="btn btn-accent btn-tiny" onClick={() => { onBulkOrder(Array.from(selected)); clearSel(); }}>
+                Mark {selected.size} as Ordered
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -927,6 +1044,75 @@ function QueueView({ items, queue, distributors, onUpdate, onManualAdd, location
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================== HELP ============================== */
+// Support address is a single constant so it's trivial to point at the real
+// inbox once it exists (placeholder until then).
+const SUPPORT_EMAIL = "support@baybridge.com";
+
+function HelpFaq({ q, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={"faq-item" + (open ? " faq-open" : "")}>
+      <button className="faq-q" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span>{q}</span>
+        <span className="faq-caret">{open ? "–" : "+"}</span>
+      </button>
+      {open && <div className="faq-a">{children}</div>}
+    </div>
+  );
+}
+
+function HelpScreen() {
+  const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Baybridge support request")}`;
+  return (
+    <div className="view">
+      <div className="view-header">
+        <h1>Help &amp; support</h1>
+        <p className="view-sub">How the daily loop works, answers to common questions, and how to reach us.</p>
+      </div>
+
+      <div className="panel">
+        <div className="panel-header"><h2>Quick start</h2></div>
+        <ol className="help-steps">
+          <li><strong>Check-in</strong> — walk a location and mark each item OK, Low, or Need to Order. Anything you flag to order lands in the queue automatically.</li>
+          <li><strong>Ordering queue</strong> — set a distributor and quantity, then mark items Ordered. You can select several at once and mark a whole distributor's order in one go.</li>
+          <li><strong>Shipments</strong> — ordered items show here. Mark a shipment Received when it arrives and inventory updates itself.</li>
+          <li><strong>Transfers</strong> — move stock between locations; confirm a transfer when it lands.</li>
+          <li><strong>Dashboard</strong> — the top of the list is whatever needs attention first, ranked by urgency.</li>
+        </ol>
+      </div>
+
+      <div className="panel">
+        <div className="panel-header"><h2>Common questions</h2></div>
+        <div className="faq-list">
+          <HelpFaq q="Why did an item show up in my ordering queue?">
+            It was marked “Need to Order” on a check-in (or added manually). Items stay in <em>Needs action</em> until you mark them Ordered or Not Needed.
+          </HelpFaq>
+          <HelpFaq q="How do I order the same item for several locations at once?">
+            On a queue item, use the location chips to pick which locations it's for. When you mark it Ordered with a distributor and quantity set, a shipment is logged and split across those locations.
+          </HelpFaq>
+          <HelpFaq q="What does marking a shipment “Received” do?">
+            It updates inventory for each location on the shipment automatically — no separate stock entry needed. Partially received? Adjust the per-location amounts first.
+          </HelpFaq>
+          <HelpFaq q="Can I filter the queue and shipments?">
+            Yes — use the Location and Distributor filters at the top of each list. The queue also groups pending items by distributor so you can act on a whole order together.
+          </HelpFaq>
+          <HelpFaq q="Who can change settings, delete items, or manage the catalog?">
+            Owners and admins manage locations, categories, distributors, branding, and deletions. Everyone can run check-ins, order, receive, and transfer.
+          </HelpFaq>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-header"><h2>Contact support</h2></div>
+        <p className="help-contact">
+          Stuck or found a problem? Email <a href={mailto} className="help-link">{SUPPORT_EMAIL}</a> and we'll help.
+        </p>
       </div>
     </div>
   );
@@ -1085,7 +1271,6 @@ function Header({ onMenuClick, practiceName, practiceLogo, profile, practice, on
       <img src={practiceLogo || DEFAULT_LOGO_SRC} alt="" className="brand-logo" />
       <div className="brand-text">
         <div className="brand-name">{practiceName || "Supply System"}</div>
-        <div className="brand-tag">Supply System</div>
       </div>
       <HeaderAccount profile={profile} practice={practice} onSignOut={onSignOut} />
     </div>
@@ -1105,6 +1290,7 @@ function SideDrawer({ open, view, setView, onClose, pendingTransfers, role }) {
   if (role === "owner" || role === "admin") {
     items.push({ key: "settings", label: "Settings", icon: "✎" });
   }
+  items.push({ key: "help", label: "Help & support", icon: "?" });
   return (
     <>
       {open && <div className="drawer-backdrop" onClick={onClose} />}
@@ -2654,6 +2840,26 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
     }
   }, [queue, locations, reloadQueue, reloadShipments]);
 
+  // Bulk "mark as Ordered" for a set of pending queue entries. Each ready entry
+  // (distributor + qty) auto-logs a shipment via the same atomic RPC as the
+  // single-row path; the rest just move to Ordered. One reload at the end.
+  const handleBulkOrderQueue = useCallback(async (ids) => {
+    let anyShipment = false;
+    for (const id of ids) {
+      const existing = queue.find((q) => q.id === id);
+      if (!existing || existing.status === "Ordered") continue;
+      try {
+        await updateQueueFields(id, { status: "Ordered" });
+        const ready = existing.distributor && Number(existing.qtyToOrder) > 0;
+        if (ready && !existing.shipmentCreated) { await orderQueueEntry(id); anyShipment = true; }
+      } catch (e) {
+        console.error(`Failed to mark queue entry ${id} ordered:`, e.message);
+      }
+    }
+    await reloadQueue();
+    if (anyShipment) await reloadShipments();
+  }, [queue, reloadQueue, reloadShipments]);
+
   const handleManualQueueAdd = useCallback(async (itemId, locationsToAdd) => {
     try {
       for (const loc of locationsToAdd) {
@@ -2981,7 +3187,7 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
           )}
           {view === "queue" && (
             <QueueView items={itemList} queue={queue} distributors={distributors}
-              onUpdate={handleUpdateQueue} onManualAdd={handleManualQueueAdd} locations={locationNames} />
+              onUpdate={handleUpdateQueue} onManualAdd={handleManualQueueAdd} onBulkOrder={handleBulkOrderQueue} locations={locationNames} />
           )}
           {view === "inventory" && (
             <InventoryView items={itemList} checks={checks} shipments={shipments} transfers={transfers} locations={locationNames} />
@@ -3009,6 +3215,7 @@ export function MainApp({ profile, practice, onSignOut, onPracticeRefresh }) {
           {view === "settings" && (profile?.role === "owner" || profile?.role === "admin") && (
             <SettingsScreen practice={practice} logoUrl={headerLogo} onUpload={handleUploadLogo} onRemove={handleRemoveLogo} onSaveColors={handleSaveColors} onSaveTimezone={handleSaveTimezone} />
           )}
+          {view === "help" && <HelpScreen />}
         </main>
       </div>
 
@@ -3207,6 +3414,37 @@ const STYLES = `
 .chip { border: 1px solid var(--line); background: var(--paper); border-radius: 100px; padding: 4px 11px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: inherit; transition: border-color 0.12s, color 0.12s; }
 .chip:hover:not(.chip-active) { border-color: var(--ink-soft); color: var(--ink); }
 .chip-active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* Filtering lists — shared FilterBar of labeled dropdowns (Shipments, Queue). */
+.filter-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin: 12px 0 4px; }
+.filter-select { display: flex; flex-direction: column; gap: 3px; }
+.filter-label { font-size: 11px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; }
+.filter-select .select { min-width: 150px; }
+.filter-clear { align-self: flex-end; }
+
+/* Queue: bulk select + distributor grouping. */
+.queue-groups { display: flex; flex-direction: column; gap: 6px; }
+.queue-group-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 4px 6px; border-bottom: 2px solid var(--line); margin-top: 6px; }
+.group-select { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.group-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+.pill-quiet { background: transparent; }
+.queue-check { width: 16px; height: 16px; accent-color: var(--brand-green); cursor: pointer; margin-right: 8px; }
+.queue-row-selected { background: color-mix(in srgb, var(--brand-green) 7%, transparent); border-radius: 8px; }
+.bulk-bar { position: sticky; bottom: 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding: 10px 14px; background: var(--ink); color: #fff; border-radius: 10px; box-shadow: 0 4px 16px rgba(20,38,61,0.22); }
+.bulk-count { font-weight: 700; font-size: 13px; }
+.bulk-hint { color: rgba(255,255,255,0.7) !important; font-size: 11.5px; }
+.bulk-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* Help screen. */
+.help-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+.faq-list { display: flex; flex-direction: column; }
+.faq-item { border-bottom: 1px solid var(--line); }
+.faq-q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: none; border: none; padding: 12px 2px; font-size: 13.5px; font-weight: 600; color: var(--ink); cursor: pointer; font-family: inherit; text-align: left; }
+.faq-caret { color: var(--ink-soft); font-size: 16px; font-weight: 400; }
+.faq-a { padding: 0 2px 13px; font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+.help-contact { font-size: 13.5px; color: var(--ink); }
+.help-link { color: var(--brand-green); font-weight: 600; text-decoration: none; }
+.help-link:hover { text-decoration: underline; }
 
 .ship-list, .queue-list { display: flex; flex-direction: column; }
 .ship-row, .queue-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
