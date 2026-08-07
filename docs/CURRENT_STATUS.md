@@ -20,11 +20,10 @@
 - **Estimated completion:** Several small/medium items remain; no fixed date yet.
 
 ## Current Priorities
-1. **Batch 2** — owner/admin gating on locations/categories create/edit + member role management + never-zero-owners (`0020`, RLS text under review, awaiting apply).
-2. **Batch 3** — `user_locations` foundation table (deliberately inert).
-3. Then: invitation UI → cross-location rebalancing → notifications → staging/production split.
+1. **Batch 3** — `user_locations` foundation table (deliberately inert) + ADR.
+2. Then: invitation UI → cross-location rebalancing → notifications → staging/production split.
 
-_Delivered: consistency findings H1/H2/M1 ✓; held-items batch (test suite, Sentry, lifecycle model) ✓; Batch 1 UI items ✓ (`9b052e8`). Migrations awaiting founder apply: `0018` (status lockdown), `0019` (frozen-join guard), `0020` (Batch 2)._
+_Delivered: consistency findings H1/H2/M1 ✓; held-items batch (test suite, Sentry, lifecycle model) ✓; Batch 1 UI items ✓ (`9b052e8`); Batch 2 permission-tightening ✓ (`0020` live + verified). Migrations `0018`/`0019`/`0020` all confirmed applied on the live DB._
 
 ## Founder Decisions Needed
 - **Pricing** — still undecided, still approaching relevance
@@ -40,9 +39,9 @@ _Delivered: consistency findings H1/H2/M1 ✓; held-items batch (test suite, Sen
 - **Production Incidents:** 0
 
 ## Currently In Progress
-- **Batch 2** — code + docs + isolation test done and building clean; migration `0020` (RLS + role-management RPC + last-owner trigger + column lockdown) brought for review, awaiting founder apply. On apply: run `role_management` isolation test (staff blocked from create/edit + self-escalation, last-owner rule holds).
 - **Batch 3** — `user_locations` foundation table + ADR: next.
-- Founder apply queue: `0018`, `0019`, `0020`.
+- **Batch 2 delivered & verified LIVE:** `0020` confirmed applied (direct 9/9 probe of all four pieces), `role_management` integration test passes live, staff read-only view verified in-browser, cascade-ordering test wired as a local-Postgres harness (`tests/local-pg`, 3/3). `0018`/`0019`/`0020` all confirmed live on the DB.
+- Open thread: `accept_invitation`'s frozen-path is inferred-live (same `0019` apply as the confirmed join guard) — to be probed directly at the first natural opportunity.
 
 ## Next Planned Work
 See [`../ROADMAP.md`](../ROADMAP.md). Headline: held items released as a batch → invitation UI → rebalancing → notifications → staging/production split.
