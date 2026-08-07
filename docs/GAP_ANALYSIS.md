@@ -42,7 +42,7 @@ three engineering sprints.
 | Design system + per-practice theming | ✅ Complete | — | `UI_UX_GUIDELINES.md`. |
 | Timestamp surfacing (inventory "last updated", queue ordered date) | 🟡 Partial | **S** | Dates exist + are mostly shown; inventory freshness + queue ordered date missing. Audit done; fix on hold. |
 | Cross-location rebalancing | 🟡 Partial (design done) | **M** | ADR `0004`; build pending. |
-| Assignments / reminders / notifications | ❌ Missing | **L** | Largest remaining V1 workstream; needs plan-first + shared detection fn. |
+| Assignments / reminders / notifications | ❌ Missing | **L** | Largest remaining V1 workstream; needs plan-first + shared detection fn. **Foundation ready:** the inert `user_locations` table (`0021`, ADR [`0008`](decisions/0008-user-locations-foundation.md)) already holds the member↔location relationship for these to consume. |
 | Role-gating (owner/admin vs staff) | 🟢 Substantially closed | **S** | Enforced at **RLS**, not just UI: delete (`0016`) + create/edit on locations/categories (`0020`), role management via `set_member_role` + column lockdown + last-owner trigger (`0020`). Remaining: `location_cabinets`/`distributors` create/edit still ungated (tracked). Role *model* (3-enum vs the vision's 6 / a permissions model) stays **deferred** — ADR [`0006`](decisions/0006-role-model-deferred.md). |
 
 ## Onboarding & growth
@@ -109,6 +109,11 @@ they can't drift.
   *stick* (reminders drive recurring check-ins). The plan-first requirement and the
   shared-detection rule are exactly what keep this from becoming two divergent
   systems — i.e. debt is controlled by process, not luck.
+- **Foundation already laid:** the member↔location relationship these systems need
+  lives in the inert `user_locations` table (`0021`, ADR
+  [`0008`](decisions/0008-user-locations-foundation.md)) — consume it rather than
+  reinventing (and re-securing) the relationship. Any columns these features
+  genuinely need get added then, when the shape is validated.
 
 **Deliberately not in the top three:** cost tracking, direct ordering, the admin
 console, and billing — all correctly later-phase. The small hygiene items

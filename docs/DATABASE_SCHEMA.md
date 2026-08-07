@@ -53,6 +53,14 @@ does this user belong to."
   `location_id` (FK → `locations`, cascade), `label`, `sort_order`. **No
   `practice_id`** — RLS-scoped via the parent location. Case-insensitive unique per
   location.
+- **`user_locations`** — member↔location many-to-many (`0021`). `profile_id`,
+  `location_id` (both FK, cascade), `created_at`; PK `(profile_id, location_id)`.
+  **No `practice_id`** — RLS-scoped via the parent location; reads practice-scoped,
+  writes owner/admin-only (insert also requires the profile to be same-practice).
+  **Deliberately inert** — nothing in the app reads or writes it; it's foundation
+  for future assignments/notifications (ADR
+  [`0008`](decisions/0008-user-locations-foundation.md)), not to be wired into any
+  UI until a real need is validated.
 
 ### Catalog
 - **`items`** — the master supply catalog. `practice_id`, `name`, `description`,

@@ -72,4 +72,11 @@ test("suspending a practice freezes all tenant access; my_practice_status stays 
   // --- Operator reactivation restores access ---
   assert.equal(((await setStatus(practiceId, "active")).data || []).length, 1, "operator reactivated the practice");
   assert.ok(((await owner.from("items").select("id")).data || []).length >= 1, "reactivated: owner reads items again");
+
+  // --- Removal path is 'offboarded' (a status transition), NOT a DELETE ---
+  // Offboarding is how a practice leaves (ADR 0007): data retained, access frozen.
+  assert.equal(((await setStatus(practiceId, "offboarded")).data || []).length, 1, "operator offboarded the practice");
+  assert.equal(((await owner.from("items").select("id")).data || []).length, 0, "offboarded: all tenant access frozen");
+  const offRow = (await owner.rpc("my_practice_status")).data?.[0];
+  assert.equal(offRow?.status, "offboarded", "offboarded: my_practice_status reports offboarded");
 });
