@@ -66,6 +66,12 @@ new dependency, matches the plain-Node convention above).
   a real failure). Tests exercising an **operator-only** path (e.g. the lifecycle
   status test since `0018`) need `SUPABASE_SERVICE_ROLE_KEY` and skip cleanly without
   it — the key is never committed.
+- **Postgres-internals tests use a real local Postgres**, separate from the
+  Supabase-backed suite: `tests/local-pg/` (`./run.sh`) provisions a throwaway
+  PostgreSQL and runs trigger/cascade tests (e.g. `enforce_last_owner`'s
+  cascade-ordering, `0020`) that an emulator can't reproduce faithfully and that the
+  live DB can't exercise without `service_role`. Touches no live data, needs no
+  Supabase creds.
 
 ## Delivery cadence
 

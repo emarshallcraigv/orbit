@@ -1,0 +1,9 @@
+{
+  "name": "baybridge-local-pg-tests",
+  "private": true,
+  "type": "module",
+  "description": "Trigger/cascade tests against a real local ephemeral Postgres (not Supabase-backed). Isolated deps so the app bundle is unaffected.",
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

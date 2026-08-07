@@ -1740,7 +1740,7 @@ function LocationsManager({ locations, onAdd, onRename, onDelete, onReorder, onS
     <div className="view">
       <div className="view-header">
         <h1>Locations</h1>
-        <p className="view-sub">Add, rename, reorder, or remove the offices this practice tracks supplies for. Names must be unique.</p>
+        <p className="view-sub">{canManage ? "Add, rename, reorder, or remove the offices this practice tracks supplies for. Names must be unique." : "The offices this practice tracks supplies for. Only an owner or admin can change these."}</p>
       </div>
 
       {canManage && (
@@ -1880,7 +1880,7 @@ function CategoriesManager({ categories, onAdd, onRename, onDelete, onReorder, c
     <div className="view">
       <div className="view-header">
         <h1>Categories</h1>
-        <p className="view-sub">A fixed list to categorize items — so the same category can't drift into several spellings. Names must be unique.</p>
+        <p className="view-sub">{canManage ? "A fixed list to categorize items — so the same category can't drift into several spellings. Names must be unique." : "The categories used to organize items. Only an owner or admin can change these."}</p>
       </div>
 
       {canManage && (

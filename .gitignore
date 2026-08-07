@@ -5,3 +5,7 @@ dist
 *.log
 .DS_Store
 .claude/
+
+# Local-Postgres test harness (downloaded binaries + isolated deps)
+tests/local-pg/.pgcache/
+tests/local-pg/node_modules/
