@@ -1,6 +1,6 @@
 # Current Status
 
-**Last updated:** August 5, 2026
+**Last updated:** August 6, 2026
 
 > The operational heartbeat — a dashboard, not a journal. Read the whole company's
 > current state in under 60 seconds. This document gets **more concise over time,
@@ -20,10 +20,9 @@
 - **Estimated completion:** Several small/medium items remain; no fixed date yet.
 
 ## Current Priorities
-1. **Batch 3** — `user_locations` foundation table (deliberately inert) + ADR.
-2. Then: invitation UI → cross-location rebalancing → notifications → staging/production split.
+1. Invitation UI → cross-location rebalancing → notifications → staging/production split.
 
-_Delivered: consistency findings H1/H2/M1 ✓; held-items batch (test suite, Sentry, lifecycle model) ✓; Batch 1 UI items ✓ (`9b052e8`); Batch 2 permission-tightening ✓ (`0020` live + verified). Migrations `0018`/`0019`/`0020` all confirmed applied on the live DB._
+_Delivered: consistency findings H1/H2/M1 ✓; held-items batch (test suite, Sentry, lifecycle model) ✓; Batches 1–3 ✓ (UI polish + frozen-join guard; permission-tightening + role management; `user_locations` foundation). Migrations `0018`–`0021` all confirmed applied and verified on the live DB._
 
 ## Founder Decisions Needed
 - **Pricing** — still undecided, still approaching relevance
@@ -35,12 +34,12 @@ _Delivered: consistency findings H1/H2/M1 ✓; held-items batch (test suite, Sen
 - **Practices:** 0 live (1 permanent internal test practice)
 - **Design Partners:** 0
 - **Active Users:** 0
-- **Core V1 Completion:** ~88%
+- **Core V1 Completion:** ~90%
 - **Production Incidents:** 0
 
 ## Currently In Progress
-- **Batch 3** — `user_locations` foundation table + ADR: next.
-- **Batch 2 delivered & verified LIVE:** `0020` confirmed applied (direct 9/9 probe of all four pieces), `role_management` integration test passes live, staff read-only view verified in-browser, cascade-ordering test wired as a local-Postgres harness (`tests/local-pg`, 3/3). `0018`/`0019`/`0020` all confirmed live on the DB.
+- **Nothing in flight — Batches 1–3 all delivered and verified live.** Next workstream (invitation UI) not yet started; awaiting go-ahead.
+- Integration suite (live): delete-gating, role-management, tenant isolation, `user_locations` all pass; lifecycle skips without a service key. Cascade-ordering covered by the local-Postgres harness (`tests/local-pg`).
 - Open thread: `accept_invitation`'s frozen-path is inferred-live (same `0019` apply as the confirmed join guard) — to be probed directly at the first natural opportunity.
 
 ## Next Planned Work
